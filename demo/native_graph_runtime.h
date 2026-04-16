@@ -1,0 +1,36 @@
+#ifndef LLM_SQL_DEMO_NATIVE_GRAPH_RUNTIME_H
+#define LLM_SQL_DEMO_NATIVE_GRAPH_RUNTIME_H
+
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    int *token_ids;
+    int token_count;
+} llmsql_generation;
+
+int llmsql_native_generate_tokens(
+    const char *model_dir,
+    const char *db_filename,
+    const char *prefill_graph_path,
+    const char *decode_graph_path,
+    const char *extension_path,
+    int num_threads,
+    const int *prompt_ids,
+    int prompt_len,
+    int max_tokens,
+    llmsql_generation *out,
+    char *error_buf,
+    size_t error_buf_size
+);
+
+void llmsql_native_free_generation(llmsql_generation *generation);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

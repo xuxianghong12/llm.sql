@@ -1,0 +1,10 @@
+torch==2.11.0
+transformers==5.5.0
+tokenizers==0.22.2
+numpy
+onnx
+pyarrow
+pandas
+pytest
+llama-cpp-python==0.3.19
+gguf==0.18.0
