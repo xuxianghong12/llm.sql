@@ -73,9 +73,21 @@ def _open_db(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+def _db_storage_stats(conn: sqlite3.Connection, db_path: str) -> dict:
+    page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+    page_count = conn.execute("PRAGMA page_count").fetchone()[0]
+    freelist_count = conn.execute("PRAGMA freelist_count").fetchone()[0]
+    return {
+        "page_size": page_size,
+        "page_count": page_count,
+        "freelist_count": freelist_count,
+        "file_bytes": os.path.getsize(db_path),
+    }
+
+
 def quantize_db(db_path: str) -> dict:
     conn = _open_db(db_path)
-    rows = conn.execute("SELECT name, data FROM model_params").fetchall()
+    names = [name for (name,) in conn.execute("SELECT name FROM model_params ORDER BY name")]
 
     original_bytes = 0
     quantized_bytes = 0
@@ -83,7 +95,11 @@ def quantize_db(db_path: str) -> dict:
     skipped = 0
     start = time.perf_counter()
 
-    for name, blob in rows:
+    for name in names:
+        blob = conn.execute(
+            "SELECT data FROM model_params WHERE name = ?",
+            [name],
+        ).fetchone()[0]
         original_bytes += len(blob)
         if not _should_quantize(blob):
             skipped += 1
@@ -105,6 +121,10 @@ def quantize_db(db_path: str) -> dict:
         ["quantization", '"int8"'],
     )
     conn.commit()
+
+    before_vacuum = _db_storage_stats(conn, db_path)
+    conn.execute("VACUUM")
+    after_vacuum = _db_storage_stats(conn, db_path)
     conn.close()
 
     return {
@@ -113,6 +133,13 @@ def quantize_db(db_path: str) -> dict:
         "original_bytes": original_bytes,
         "quantized_bytes": quantized_bytes,
         "compression_ratio": original_bytes / quantized_bytes if quantized_bytes else 0.0,
+        "db_file_bytes_before_vacuum": before_vacuum["file_bytes"],
+        "db_file_bytes_after_vacuum": after_vacuum["file_bytes"],
+        "db_page_size": after_vacuum["page_size"],
+        "db_page_count_before_vacuum": before_vacuum["page_count"],
+        "db_page_count_after_vacuum": after_vacuum["page_count"],
+        "freelist_pages_before_vacuum": before_vacuum["freelist_count"],
+        "freelist_pages_after_vacuum": after_vacuum["freelist_count"],
         "elapsed_sec": time.perf_counter() - start,
     }
 
