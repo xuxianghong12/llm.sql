@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import os
 import resource
+import threading
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, Iterator, List
 
 
 _IS_LINUX = os.path.isfile("/proc/self/status")
@@ -202,3 +205,153 @@ class MemoryTracker:
 
     def reset(self) -> None:
         self._snapshots.clear()
+
+
+@dataclass
+class StagePeakMemory:
+    label: str
+    elapsed_sec: float = 0.0
+    start_rss_kb: int = 0
+    end_rss_kb: int = 0
+    peak_rss_kb: int = 0
+    start_vmsize_kb: int = 0
+    end_vmsize_kb: int = 0
+    peak_vmsize_kb: int = 0
+    start_swap_kb: int = 0
+    end_swap_kb: int = 0
+    peak_swap_kb: int = 0
+    sample_count: int = 0
+
+
+def _read_proc_memory_kb() -> Dict[str, int]:
+    status = _read_proc_status()
+    return {
+        "rss_kb": status.get("VmRSS", 0),
+        "vmsize_kb": status.get("VmSize", 0),
+        "swap_kb": status.get("VmSwap", 0),
+    }
+
+
+def _format_kb_as_mib(value_kb: int) -> str:
+    return f"{value_kb / 1024.0:.1f}"
+
+
+class _StagePeakSampler:
+    def __init__(self, label: str, sample_interval_sec: float) -> None:
+        self._label = label
+        self._sample_interval_sec = sample_interval_sec
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._start_metrics = _read_proc_memory_kb()
+        self._peak_metrics = dict(self._start_metrics)
+        self._sample_count = 1
+        self._start_time = 0.0
+
+    def start(self) -> None:
+        self._start_time = time.perf_counter()
+        if _IS_LINUX and self._sample_interval_sec > 0:
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
+
+    def _observe(self, metrics: Dict[str, int]) -> None:
+        self._sample_count += 1
+        self._peak_metrics["rss_kb"] = max(
+            self._peak_metrics["rss_kb"], metrics["rss_kb"]
+        )
+        self._peak_metrics["vmsize_kb"] = max(
+            self._peak_metrics["vmsize_kb"], metrics["vmsize_kb"]
+        )
+        self._peak_metrics["swap_kb"] = max(
+            self._peak_metrics["swap_kb"], metrics["swap_kb"]
+        )
+
+    def _run(self) -> None:
+        while not self._stop_event.wait(self._sample_interval_sec):
+            self._observe(_read_proc_memory_kb())
+
+    def finish(self) -> StagePeakMemory:
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join()
+
+        end_metrics = _read_proc_memory_kb()
+        self._observe(end_metrics)
+        return StagePeakMemory(
+            label=self._label,
+            elapsed_sec=time.perf_counter() - self._start_time,
+            start_rss_kb=self._start_metrics["rss_kb"],
+            end_rss_kb=end_metrics["rss_kb"],
+            peak_rss_kb=self._peak_metrics["rss_kb"],
+            start_vmsize_kb=self._start_metrics["vmsize_kb"],
+            end_vmsize_kb=end_metrics["vmsize_kb"],
+            peak_vmsize_kb=self._peak_metrics["vmsize_kb"],
+            start_swap_kb=self._start_metrics["swap_kb"],
+            end_swap_kb=end_metrics["swap_kb"],
+            peak_swap_kb=self._peak_metrics["swap_kb"],
+            sample_count=self._sample_count,
+        )
+
+
+class StagePeakMemoryTracker:
+    """Track peak process memory for named pipeline stages."""
+
+    def __init__(self, sample_interval_sec: float = 0.05) -> None:
+        self._sample_interval_sec = sample_interval_sec
+        self._records: List[StagePeakMemory] = []
+
+    @contextmanager
+    def track(self, label: str) -> Iterator[None]:
+        sampler = _StagePeakSampler(label, self._sample_interval_sec)
+        sampler.start()
+        try:
+            yield
+        finally:
+            self._records.append(sampler.finish())
+
+    @property
+    def records(self) -> List[StagePeakMemory]:
+        return list(self._records)
+
+    def to_rows(self) -> List[Dict[str, object]]:
+        return [
+            {
+                "label": record.label,
+                "elapsed_sec": record.elapsed_sec,
+                "start_rss_kb": record.start_rss_kb,
+                "end_rss_kb": record.end_rss_kb,
+                "peak_rss_kb": record.peak_rss_kb,
+                "start_vmsize_kb": record.start_vmsize_kb,
+                "end_vmsize_kb": record.end_vmsize_kb,
+                "peak_vmsize_kb": record.peak_vmsize_kb,
+                "start_swap_kb": record.start_swap_kb,
+                "end_swap_kb": record.end_swap_kb,
+                "peak_swap_kb": record.peak_swap_kb,
+                "sample_count": record.sample_count,
+            }
+            for record in self._records
+        ]
+
+    def summary(self) -> str:
+        lines = [
+            "Stage Peak Memory Summary",
+            "=" * 110,
+            (
+                f"  {'label':<20s} {'elapsed_s':>10s} {'start_rss_mib':>14s} "
+                f"{'peak_rss_mib':>13s} {'end_rss_mib':>12s} {'peak_vms_mib':>13s} {'peak_swap_mib':>14s}"
+            ),
+            "-" * 110,
+        ]
+        for record in self._records:
+            lines.append(
+                f"  {record.label:<20s} {record.elapsed_sec:>10.2f} "
+                f"{_format_kb_as_mib(record.start_rss_kb):>14s} "
+                f"{_format_kb_as_mib(record.peak_rss_kb):>13s} "
+                f"{_format_kb_as_mib(record.end_rss_kb):>12s} "
+                f"{_format_kb_as_mib(record.peak_vmsize_kb):>13s} "
+                f"{_format_kb_as_mib(record.peak_swap_kb):>14s}"
+            )
+        lines.append("=" * 110)
+        return "\n".join(lines)
+
+    def reset(self) -> None:
+        self._records.clear()
