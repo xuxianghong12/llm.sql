@@ -2,7 +2,7 @@
  * @Author: xuxianghong12
  * @Date: 2026-04-13 19:05:39
  * @LastEditors: xuxianghong12
- * @LastEditTime: 2026-04-17 00:07:33
+ * @LastEditTime: 2026-04-17 09:23:07
  * @SPDX-License-Identifier: Apache-2.0
 -->
 # llm.sql
@@ -35,7 +35,7 @@
 
 <h2 align="center">llm.sql: Bringing LLM Inference to Every Device</h2>
 
-`llm.sql` is a brand-new LLM inference framework that reimagines the neural network execution pipeline as a series of structured SQL queries. By integrating model parameters and computational logic directly within SQLite, which is already pre-installed on billions of devices. llm.sql enables deterministic memory control, ensuring that the peak memory footprint of the inference process remains significantly smaller than the total model size. For instance, the peak memory usage of a process running Qwen2.5-0.5B int8 is reduced to approximately 260MB. By facilitating high-portability inference on resource-constrained edge devices, it effectively brings LLM capabilities to every device.
+`llm.sql` is a brand-new LLM inference framework that reimagines the neural network execution pipeline as a series of structured SQL queries. It integrates model parameters and computational logic directly within SQLite, which is already pre-installed on billions of devices. `llm.sql` enables deterministic memory control, ensuring that the peak memory footprint of the inference process remains significantly smaller than the total model size. For instance, the peak memory usage of a process running Qwen2.5-0.5B int8 is reduced to approximately 260MB. By facilitating high-portability inference on resource-constrained edge devices, it is aimed to bring LLM capabilities to every device.
 
 
 ## Background
