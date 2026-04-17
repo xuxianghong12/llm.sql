@@ -59,7 +59,6 @@ from src.backends.sqlite_engine import (
     create_connection,
     save_params_to_db,
     load_param_names_from_db,
-    preload_params_from_db,
 )
 
 
@@ -921,9 +920,6 @@ class SqliteKVCacheGraphExecutor:
             Exported program for decode stage (with past_key_values input).
             Should output (logits, kv_cache) tuple.
         """
-        self._prefill_ep = ep_prefill
-        self._decode_ep = ep_decode
-
         # Extract and store model parameters (shared between both graphs)
         # Process both graphs to pick up any constants unique to each.
         self._compile_params(ep_prefill)
@@ -938,57 +934,73 @@ class SqliteKVCacheGraphExecutor:
         # Detect number of layers from graph structure
         self._detect_num_layers(ep_prefill)
 
+        # ``ExportedProgram`` objects retain parameter mappings and graph
+        # modules; after compilation/export we only need the compiled
+        # instruction lists plus parameter names.
+        self._prefill_ep = None
+        self._decode_ep = None
+
     def _compile_params(self, ep: torch.export.ExportedProgram) -> None:
         """Extract and store model parameters from exported program.
 
         For file-based databases, parameters are persisted to the
-        ``model_params`` table **and** eagerly loaded back into Python
-        memory so that inference uses direct BLOB binds (no sub-SELECT
-        overhead).
+        ``model_params`` table and Python keeps only parameter-name
+        references.  That avoids duplicating the serialized model in both
+        SQLite and Python heap during export.
         """
-        all_tensors: Dict[str, torch.Tensor] = {}
-        all_tensors.update(ep.state_dict)
-        all_tensors.update({k: v for k, v in ep.named_buffers()})
-
-        # Also get constant tensors from the exported program
-        if hasattr(ep, 'constants') and ep.constants:
-            all_tensors.update(ep.constants)
+        state_dict = ep.state_dict
+        buffers = {k: v for k, v in ep.named_buffers()}
+        constants = getattr(ep, 'constants', None) or {}
 
         # Collect parameter node names (including constants)
         param_node_names: List[str] = []
+        seen_node_names = set()
         for spec in ep.graph_signature.input_specs:
             if spec.kind in (InputKind.PARAMETER, InputKind.BUFFER, InputKind.CONSTANT_TENSOR):
-                param_node_names.append(spec.arg.name)
+                node_name = spec.arg.name
+                if node_name not in seen_node_names:
+                    param_node_names.append(node_name)
+                    seen_node_names.add(node_name)
+
+        def _lookup_tensor(spec) -> Optional[torch.Tensor]:
+            tensor = state_dict.get(spec.target)
+            if tensor is None:
+                tensor = buffers.get(spec.target)
+            if tensor is None:
+                tensor = constants.get(spec.target)
+            return tensor
+
+        def _iter_serialized_param_blobs(missing_only: Optional[set[str]] = None):
+            emitted = set()
+            for spec in ep.graph_signature.input_specs:
+                if spec.kind not in (
+                    InputKind.PARAMETER,
+                    InputKind.BUFFER,
+                    InputKind.CONSTANT_TENSOR,
+                ):
+                    continue
+                node_name = spec.arg.name
+                if node_name in emitted:
+                    continue
+                if missing_only is not None and node_name not in missing_only:
+                    continue
+                tensor = _lookup_tensor(spec)
+                if tensor is None:
+                    continue
+                emitted.add(node_name)
+                yield node_name, tensor_to_blob(tensor.detach().float().numpy())
 
         if self._db_path != ':memory:':
-            # File DB mode — persist then eagerly preload into memory.
+            # File DB mode — persist missing blobs, then keep only the
+            # parameter-name references so SQL resolves blobs lazily.
             existing = set(load_param_names_from_db(self._conn))
-            needed = set(param_node_names)
-            if not (needed and needed.issubset(existing)):
-                raw_blobs: Dict[str, bytes] = {}
-                for spec in ep.graph_signature.input_specs:
-                    if spec.kind in (InputKind.PARAMETER, InputKind.BUFFER, InputKind.CONSTANT_TENSOR):
-                        node_name = spec.arg.name
-                        tensor = all_tensors.get(spec.target)
-                        if tensor is not None:
-                            raw_blobs[node_name] = tensor_to_blob(
-                                tensor.detach().float().numpy()
-                            )
-                save_params_to_db(self._conn, raw_blobs)
-            # Eagerly load all BLOBs — eliminates sub-SELECT overhead.
-            self._param_data.update(preload_params_from_db(self._conn))
+            missing = set(param_node_names).difference(existing)
+            if missing:
+                save_params_to_db(self._conn, _iter_serialized_param_blobs(missing))
+            self._param_data.update({name: name for name in param_node_names})
         else:
             # In-memory mode
-            raw_blobs = {}
-            for spec in ep.graph_signature.input_specs:
-                if spec.kind in (InputKind.PARAMETER, InputKind.BUFFER, InputKind.CONSTANT_TENSOR):
-                    node_name = spec.arg.name
-                    tensor = all_tensors.get(spec.target)
-                    if tensor is not None:
-                        raw_blobs[node_name] = tensor_to_blob(
-                            tensor.detach().float().numpy()
-                        )
-            self._param_data.update(raw_blobs)
+            self._param_data.update(dict(_iter_serialized_param_blobs()))
 
     def _compile_graph(self, ep: torch.export.ExportedProgram) -> List[_Instr]:
         """Compile a single exported program into instruction list.

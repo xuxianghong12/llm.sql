@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
 import shutil
@@ -99,6 +100,7 @@ def main() -> None:
     print(f"[export] loading {args.model}")
     model = Qwen2ForCausalLM.from_pretrained(
         args.model,
+        low_cpu_mem_usage=True,
         torch_dtype=torch.float32,
         trust_remote_code=True,
     )
@@ -113,6 +115,25 @@ def main() -> None:
     print("[export] compiling SQLite graph executor")
     executor = SqliteKVCacheGraphExecutor(db_path=db_path)
     executor.compile(ep_prefill, ep_decode)
+
+    metadata = {
+        "model_name": args.model,
+        "vocab_size": model.config.vocab_size,
+        "hidden_size": model.config.hidden_size,
+        "num_hidden_layers": model.config.num_hidden_layers,
+        "num_attention_heads": model.config.num_attention_heads,
+        "num_key_value_heads": model.config.num_key_value_heads,
+        "intermediate_size": model.config.intermediate_size,
+        "num_layers": executor._num_layers,
+    }
+
+    # The compiled executor no longer needs the original model or exported
+    # programs; dropping them here lowers the peak before tokenizer export
+    # and optional INT8 quantization start.
+    del ep_prefill
+    del ep_decode
+    del model
+    gc.collect()
 
     print("[export] storing tokenizer vocabulary in SQLite")
     hf_tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
@@ -133,17 +154,7 @@ def main() -> None:
     conn.execute(
         "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
     )
-    metadata = {
-        "model_name": args.model,
-        "vocab_size": model.config.vocab_size,
-        "hidden_size": model.config.hidden_size,
-        "num_hidden_layers": model.config.num_hidden_layers,
-        "num_attention_heads": model.config.num_attention_heads,
-        "num_key_value_heads": model.config.num_key_value_heads,
-        "intermediate_size": model.config.intermediate_size,
-        "num_layers": executor._num_layers,
-        "eos_token_id": hf_tokenizer.eos_token_id,
-    }
+    metadata["eos_token_id"] = hf_tokenizer.eos_token_id
     conn.executemany(
         "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
         [(key, json.dumps(value)) for key, value in metadata.items()],
@@ -184,7 +195,7 @@ def main() -> None:
             "model_name": args.model,
             "default_db": default_db,
             "num_layers": executor._num_layers,
-            "vocab_size": model.config.vocab_size,
+            "vocab_size": metadata["vocab_size"],
             "files": {
                 "model_db": "model.db",
                 "model_int8_db": "model_int8.db" if not args.skip_int8 else None,
@@ -214,6 +225,7 @@ def main() -> None:
         print("artifacts   : model.db, prefill/decode.json, prefill/decode.native.json, tokenizer.json")
     if quant_summary is not None:
         print(f"int8 ratio  : {quant_summary['compression_ratio']:.2f}x")
+        print(f"int8 db     : {quant_summary['db_file_bytes_after_vacuum'] / (1024 * 1024):.1f} MiB")
 
 
 if __name__ == "__main__":
