@@ -1,5 +1,33 @@
 #!/usr/bin/env python
-"""Export Qwen2.5-0.5B-Instruct to SQLite instruction graphs and build INT8 weights."""
+"""Export Qwen2.5-0.5B-Instruct to SQLite instruction graphs and build INT8 weights.
+
+Usage:
+    python scripts/export_qwen2_05b.py [--model MODEL] [--output-dir DIR]
+        [--example-seq-len N] [--skip-int8] [--emit-standalone-sql]
+
+Examples:
+    # Export using a local model directory
+    python scripts/export_qwen2_05b.py --model /path/to/Qwen2.5-0.5B-Instruct --output-dir /tmp/llm_export
+
+    # Export using a HuggingFace model id and skip INT8 quantization
+    python scripts/export_qwen2_05b.py --model Qwen/Qwen2.5-0.5B-Instruct --skip-int8
+
+Description:
+    This script exports the model's prefill and decode graphs into a SQLite
+    database (model.db) and writes runtime artifacts under the specified
+    --output-dir. If not skipped, it will produce an INT8 quantized database
+    model_int8.db by copying model.db and running the quantizer.
+
+Requirements:
+    - Python 3.8+ (recommended 3.12)
+    - torch, transformers, tokenizers
+    - The model must be accessible (local path or HF id).
+
+Output:
+    - model.db, model_int8.db (unless --skip-int8), tokenizer.json,
+      prefill.json, decode.json, manifest.json (contains memory_profile).
+
+"""
 
 from __future__ import annotations
 

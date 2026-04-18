@@ -1,6 +1,22 @@
 #!/usr/bin/env python
 
-"""Export native per-op SQL graphs for the C/C++ demo runtime."""
+"""Export native per-op SQL graphs for the C/C++ demo runtime.
+
+Usage:
+    python scripts/export_native_graphs.py --model-dir MODEL_DIR [--db-filename FILE] [--output-dir DIR]
+
+Example:
+    python scripts/export_native_graphs.py --model-dir /tmp/llm_sql_qwen2_05b
+
+Description:
+    Reads the exported model DB (default model.db) and prefill/decode JSON,
+    builds per-op SQL graphs for the C/C++ demo runtime, and writes
+    prefill.native.json and decode.native.json to the output directory.
+
+Requirements:
+    - The exported model directory produced by `export_qwen2_05b.py`.
+
+"""
 
 from __future__ import annotations
 

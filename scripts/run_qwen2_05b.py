@@ -1,5 +1,22 @@
 #!/usr/bin/env python
-"""Run Qwen2.5-0.5B generation through the llm.sql public API."""
+"""Run Qwen2.5-0.5B generation through the llm.sql public API.
+
+Usage:
+    python scripts/run_qwen2_05b.py [--model-dir DIR] [--prompt TEXT] [--max-tokens N]
+        [--mode single_sql|eager|layer_stream] [--db-filename FILE] [--threads N]
+
+Example:
+    python scripts/run_qwen2_05b.py --model-dir /tmp/llm_sql_qwen2_05b --prompt "Hello" --max-tokens 64 --mode eager
+
+Description:
+    Loads an exported model directory (manifest + model DB) and runs a single
+    generation. Prints the completion and optional profile info if `--profile`
+    is supplied.
+
+Requirements:
+    - The exported model directory produced by `export_qwen2_05b.py`.
+
+"""
 
 from __future__ import annotations
 

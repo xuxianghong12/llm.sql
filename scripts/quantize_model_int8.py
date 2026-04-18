@@ -1,5 +1,28 @@
 #!/usr/bin/env python
-"""Quantize exported model weights to per-row symmetric INT8."""
+"""Quantize exported model weights to per-row symmetric INT8.
+
+Usage:
+    python scripts/quantize_model_int8.py --export-dir EXPORT_DIR [--output-db PATH]
+
+Examples:
+    # Quantize the exported model in-place (writes model_int8.db next to model.db)
+    python scripts/quantize_model_int8.py --export-dir /tmp/llm_sql_qwen2_05b
+
+    # Quantize and write to a specific output file
+    python scripts/quantize_model_int8.py --export-dir /tmp/llm_sql_qwen2_05b --output-db /tmp/model_int8.db
+
+Description:
+    Connects to the SQLite file at EXPORT_DIR/model.db, quantizes eligible
+    parameter rows to symmetric per-row int8 using the sqlite-llm extension,
+    updates rows in-place, and runs VACUUM to reclaim freed pages. Prints a
+    summary with compression statistics.
+
+Requirements:
+    - sqlite-llm extension built and available at sqlite-llm/llm_ops.so
+    - Python's sqlite3 module with load_extension support
+    - Sufficient disk space for a copy of the DB (if output path differs)
+
+"""
 
 from __future__ import annotations
 
