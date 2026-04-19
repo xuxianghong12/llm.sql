@@ -48,23 +48,35 @@ jobs:
           mkdir -p _site/en _site/zh
           cp -R book/en/dist/. _site/en/
           cp -R book/zh/dist/. _site/zh/
-          cat > _site/index.html <<'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>llm.sql Books</title>
-          </head>
-          <body>
-            <h1>llm.sql Books</h1>
-            <ul>
-              <li><a href="en/">English Book</a></li>
-              <li><a href="zh/">中文文档</a></li>
-            </ul>
-          </body>
-          </html>
-          EOF
+          # copy docs resources referenced by README (if any)
+          cp -R docs _site/docs || true
+
+          # render README.md to HTML and write to root _site/index.html
+          python3 -m pip install --upgrade pip >/dev/null 2>&1 || true
+          python3 -m pip install markdown >/dev/null 2>&1
+          python3 - <<'PY'
+import pathlib, markdown, sys
+p = pathlib.Path('README.md')
+if not p.exists():
+    sys.exit(0)
+md = p.read_text(encoding='utf-8')
+html = markdown.markdown(md, extensions=['fenced_code','tables','toc','nl2br'])
+nav = '<nav><ul><li><a href="en/">English Book</a></li><li><a href="zh/">中文文档</a></li></ul></nav>'
+out = f'''<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>llm.sql</title>
+  <style>body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial;line-height:1.6;padding:1rem;}}pre{{background:#f6f8fa;padding:1em;border-radius:6px;overflow:auto;}}code{{background:#f6f8fa;padding:.2em;border-radius:4px;}}</style>
+</head>
+<body>
+{nav}
+{html}
+</body>
+</html>'''
+pathlib.Path('_site/index.html').write_text(out, encoding='utf-8')
+PY
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
