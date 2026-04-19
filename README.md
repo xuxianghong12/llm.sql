@@ -280,6 +280,8 @@ For the C and C++ demos, see [demo/README.md](demo/README.md).
 
 
 ## Features and Roadmap
+See the documentation books: [English](book/en/README.md), [中文](book/zh/README.md).
+
 The current development status and the long-term vision of `llm.sql` is shown as follows.
 
 
