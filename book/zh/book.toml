@@ -1,0 +1,19 @@
+[book]
+authors = ["xuxianghong12"]
+language = "zh-CN"
+src = "src"
+title = "llm.sql 中文文档"
+
+[build]
+build-dir = "dist"
+
+[output.html]
+git-repository-url = "https://github.com/xuxianghong12/llm.sql"
+mathjax-support = true
+
+[preprocessor.bib]
+command = "mdbook-bib"
+bibliography = "refs.bib"
+title = "参考资料"
+render-bib = "cited"
+order = "index"
