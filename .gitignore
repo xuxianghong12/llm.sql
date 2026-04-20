@@ -19,3 +19,4 @@ demo/c_qwen_graph_tokens
 demo/cpp_qwen_graph_tokens
 demo/c_qwen_graph_string
 demo/cpp_qwen_graph_string
+sqlite-llm/test_llm_tokenizer
