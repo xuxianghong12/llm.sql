@@ -19,7 +19,7 @@ Description:
     model_int8.db by copying model.db and running the quantizer.
 
 Requirements:
-    - Python 3.8+ (recommended 3.12)
+    - Python 3.12
     - torch, transformers, tokenizers
     - The model must be accessible (local path or HF id).
 

@@ -55,7 +55,7 @@ def main() -> None:
     parser.add_argument(
         "--mode",
         choices=["single_sql", "eager", "layer_stream"],
-        default="single_sql",
+        default="eager",
     )
     parser.add_argument("--db-filename", default="model_int8.db")
     parser.add_argument("--threads", type=int, default=1)

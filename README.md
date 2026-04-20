@@ -2,7 +2,7 @@
  * @Author: xuxianghong12
  * @Date: 2026-04-13 19:05:39
  * @LastEditors: xuxianghong12
- * @LastEditTime: 2026-04-17 09:23:07
+ * @LastEditTime: 2026-04-20 21:26:13
  * @SPDX-License-Identifier: Apache-2.0
 -->
 # llm.sql
@@ -35,7 +35,7 @@
 
 <h2 align="center">llm.sql: Bringing LLM Inference to Every Device</h2>
 
-`llm.sql` is a brand-new LLM inference framework that reimagines the neural network execution pipeline as a series of structured SQL queries. It integrates model parameters and computational logic directly within SQLite, which is already pre-installed on billions of devices. `llm.sql` enables deterministic memory control, ensuring that the peak memory footprint of the inference process remains significantly smaller than the total model size. For instance, the peak memory usage of a process running Qwen2.5-0.5B int8 is reduced to approximately 260MB. By facilitating high-portability inference on resource-constrained edge devices, it is aimed to bring LLM capabilities to every device.
+`llm.sql` is a brand-new LLM inference framework that reimagines the neural network execution pipeline as a series of structured SQL queries. It integrates model parameters and computational logic directly within SQLite, which is already pre-installed on billions of devices. `llm.sql` enables deterministic memory control, ensuring that the peak memory footprint of the inference process remains significantly smaller than the total model size. For instance, in a single-process CPU-only inference setup, the peak memory usage of Qwen2.5-0.5B-INT8 (model size ~640MB) is reduced to approximately 260MB, while achieving a decoding throughput of 5.23 tokens/s. By facilitating high-portability inference on resource-constrained edge devices, it is aimed to bring LLM capabilities to every device.
 
 
 ## Background
@@ -123,7 +123,7 @@ python scripts/export_qwen2_05b.py \
 The export directory contains the runtime artifacts, including `model.db`, `model_int8.db`, `prefill.json`, `decode.json`, `prefill.native.json`, `decode.native.json`, `tokenizer.json`, and `manifest.json`.
 
 
-> ⚠️ Please note that at current stage, exporting model parameters to SQLite BLOB tables requires large RAM, potentially up to 20GB to successfully export a 0.5B model. This issue will be addressed in future optimizations. 
+> Exporting model parameters to SQLite BLOB tables requires about 5GB RAM for Qwen2.5-0.5B model.
 > 
 > If your computer is unable to export the model, you can directly download the pre-exported contents. 
 > 
