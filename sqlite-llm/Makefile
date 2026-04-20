@@ -46,9 +46,13 @@ PCACHE_SRC:= llm_pcache.c
 PARAM_MGR_SO := llm_param_mgr.so
 PARAM_MGR_SRC:= llm_param_mgr.c
 
-.PHONY: all test clean print_llm_have_avx2
+# ── Tokenizer library ────────────────────────────────────────────────────
+TOKENIZER_SO  := llm_tokenizer.so
+TOKENIZER_SRC := llm_tokenizer.c
 
-all: $(SONAME) $(PCACHE_SO) $(PARAM_MGR_SO)
+.PHONY: all test test-tokenizer clean print_llm_have_avx2
+
+all: $(SONAME) $(PCACHE_SO) $(PARAM_MGR_SO) $(TOKENIZER_SO)
 
 $(SONAME): $(SRCS) llm_ops.h
 	$(CC) $(CFLAGS) $(SQLITE_INC) \
@@ -82,6 +86,27 @@ $(PARAM_MGR_SO): $(PARAM_MGR_SRC) llm_param_mgr.h llm_pcache.h $(PCACHE_SO)
 	@echo "Dynamic dependencies:"
 	@ldd $(PARAM_MGR_SO) 2>/dev/null || true
 
+# ── Tokenizer shared library ──────────────────────────────────────────────
+$(TOKENIZER_SO): $(TOKENIZER_SRC)
+	$(CC) -O2 -Wall -Wextra -Wpedantic -fPIC -fvisibility=hidden \
+	    $(SQLITE_INC) \
+	    -shared -o $@ $(TOKENIZER_SRC) \
+	    $(SQLITE_LIB)
+	@echo "Built $(TOKENIZER_SO)"
+	@echo "Dynamic dependencies:"
+	@ldd $(TOKENIZER_SO) 2>/dev/null || true
+
+# ── Tokenizer test binary ────────────────────────────────────────────────
+TEST_TOKENIZER_BIN := test_llm_tokenizer
+
+$(TEST_TOKENIZER_BIN): test_llm_tokenizer.c $(TOKENIZER_SO)
+	$(CC) -O2 -Wall -Wextra -Wpedantic -o $@ test_llm_tokenizer.c \
+	    $(SQLITE_INC) \
+	    $(SQLITE_LIB)
+
+test-tokenizer: $(TEST_TOKENIZER_BIN)
+	./$(TEST_TOKENIZER_BIN)
+
 # ── Test binary ───────────────────────────────────────────────────────────
 TEST_BIN  := test_llm_ops
 
@@ -96,7 +121,7 @@ test: $(TEST_BIN)
 
 # ── Cleanup ───────────────────────────────────────────────────────────────
 clean:
-	rm -f $(SONAME) $(PCACHE_SO) $(PARAM_MGR_SO) $(TEST_BIN)
+	rm -f $(SONAME) $(PCACHE_SO) $(PARAM_MGR_SO) $(TOKENIZER_SO) $(TEST_BIN) $(TEST_TOKENIZER_BIN)
 
 # Print value of LLM_HAVE_AVX2 as seen by the preprocessor
 print_llm_have_avx2:
