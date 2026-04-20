@@ -861,7 +861,7 @@ static int parse_merges_array(
             return 0;
         }
         /* merge_str is e.g. "Ġ t" — split on first space
-         * to build the pair key "tokenA\0tokenB" */
+         * to build the pair key "tokenA\ttokenB" */
         space = strchr(merge_str, ' ');
         if (space != NULL) {
             *space = '\0';
