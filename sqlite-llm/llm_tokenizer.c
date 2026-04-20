@@ -7,7 +7,7 @@
  *   llm_tokenize(text, tokenizer_json_path)
  *       → BLOB of int32 token IDs
  *
- *   llm_detokenize(token_ids_blob, db_path)
+ *   llm_detokenize(token_ids_blob)
  *       → TEXT (decoded UTF-8 string)
  *
  * The vocab table is read from the *same* database connection
