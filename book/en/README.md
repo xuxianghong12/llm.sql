@@ -2,10 +2,14 @@
  * @SPDX-License-Identifier: Apache-2.0
  * @Author: xuxianghong12
  * @Date: 2026-04-19 15:49:56
- * @LastEditTime: 2026-04-19 16:26:23
+ * @LastEditTime: 2026-04-20 21:41:41
  * @LastEditors: xuxianghong12
 -->
 # llm.sql English Book
+
+Online documents: [llm.sql Documents](https://xuxianghong12.github.io/llm.sql/en/)
+
+Build the document locally can refer to the following instructions.
 
 ## Tooling
 

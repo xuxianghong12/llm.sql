@@ -2,12 +2,14 @@
  * @SPDX-License-Identifier: Apache-2.0
  * @Author: xuxianghong12
  * @Date: 2026-04-19 15:49:58
- * @LastEditTime: 2026-04-19 16:15:29
+ * @LastEditTime: 2026-04-20 21:41:35
  * @LastEditors: xuxianghong12
 -->
 # llm.sql 中文文档
 
-这个目录包含独立的中文 mdBook，用来记录面向实现的功能说明和路线图。
+在线浏览：[llm.sql 中文文档](https://xuxianghong12.github.io/llm.sql/zh/)
+
+本地构建可参考下述说明。
 
 ## 工具链
 

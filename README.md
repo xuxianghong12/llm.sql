@@ -2,7 +2,7 @@
  * @Author: xuxianghong12
  * @Date: 2026-04-13 19:05:39
  * @LastEditors: xuxianghong12
- * @LastEditTime: 2026-04-20 21:26:13
+ * @LastEditTime: 2026-04-20 21:38:15
  * @SPDX-License-Identifier: Apache-2.0
 -->
 # llm.sql
@@ -12,19 +12,14 @@
 </p>
 
 <div align="center">
-  <p align="center">
-    <a href="https://www.python.org/">
-      <img src="https://img.shields.io/badge/Python-3.12-blue.svg" alt="Python 3.12">
-    </a>
-    <a href="https://gcc.gnu.org/">
-      <img src="https://img.shields.io/badge/GCC-11.4.0-orange.svg" alt="GCC 11.4.0">
-    </a>
-    <a href="https://gcc.gnu.org/">
-      <img src="https://img.shields.io/badge/G%2B%2B-11.4.0-yellow.svg" alt="G++ 11.4.0">
-    </a>
-    <a href="https://github.com/xuxianghong12/llm.sql/blob/main/LICENSE">
-      <img src="https://img.shields.io/badge/License-Apache%202.0-green.svg" alt="Apache 2.0 License">
-    </a>
+  <p>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12-blue.svg" alt="Python 3.12"></a>
+    <a href="https://gcc.gnu.org/"><img src="https://img.shields.io/badge/GCC-11.4.0-orange.svg" alt="GCC 11.4.0"></a>
+    <a href="https://gcc.gnu.org/"><img src="https://img.shields.io/badge/G%2B%2B-11.4.0-yellow.svg" alt="G++ 11.4.0"></a>
+    <a href="https://github.com/xuxianghong12/llm.sql/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-green.svg" alt="Apache 2.0 License"></a>
+    <a href="book/en/README.md"><img src="https://img.shields.io/badge/Docs-EN-blue.svg" alt="English Docs"></a>
+    <a href="book/zh/README.md"><img src="https://img.shields.io/badge/文档-中文-red.svg" alt="中文 文档"></a>
+    
   </p>
 </div>
 
