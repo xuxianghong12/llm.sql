@@ -13,16 +13,17 @@ Fixed inputs used below:
 
 - model: `Qwen2.5-0.5B-Instruct`
 - prompt: `hello`
-- token id: 14990
-
-
 
 The commands below are written for Linux and should be run from the repository root.
 
-## 1. Build the SQLite extension
+## 1. Build the SQLite extensions
 
 ```bash
+# Core LLM tensor ops
 make -C sqlite-llm llm_ops.so
+
+# BPE tokenizer (enables string prompt input/output)
+make -C sqlite-llm llm_tokenizer.so
 ```
 
 ## 2. Export Qwen2.5-0.5B-Instruct
@@ -31,33 +32,48 @@ Refer to [README.md](../README.md) to export model yourself of directly download
 
 ## 3. Run Qwen on llm.sql from C and C++
 
-Build both binaries:
+All four demos now accept **plain-text string prompts** and produce
+decoded text output.  Tokenization is handled by the
+`llm_tokenizer.so` SQLite extension — no C tokenizer library is
+linked into the binaries.
+
+Build all binaries:
 
 ```bash
-make -C demo c_qwen_graph_tokens cpp_qwen_graph_tokens
+make -C demo c_qwen_graph_tokens cpp_qwen_graph_tokens \
+             c_qwen_graph_string cpp_qwen_graph_string
 ```
 
-Run the C demo with the verified `hello` token id (`14990`) and `max_tokens=5`:
+Run the C demo with a plain-text prompt and `max_tokens=5`:
 
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
-  ./demo/c_qwen_graph_tokens /path/to/exported/model 14990 5 model_int8.db
+  ./demo/c_qwen_graph_tokens /path/to/exported/model "hello" 5 model_int8.db
 ```
 
 Run the C++ demo:
 
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
-  ./demo/cpp_qwen_graph_tokens /path/to/exported/model 14990 5 model_int8.db
+  ./demo/cpp_qwen_graph_tokens /path/to/exported/model "hello" 5 model_int8.db
 ```
 
-Verified output for both commands:
+The same commands work for the `_string` variants:
 
-```text
-19482,271,39814,11,358
+```bash
+LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
+  ./demo/c_qwen_graph_string /path/to/exported/model "hello" 5 model_int8.db
+
+LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
+  ./demo/cpp_qwen_graph_string /path/to/exported/model "hello" 5 model_int8.db
 ```
 
-The same `5` token ids were also re-validated against the Python `StandaloneEngine` reference path. The output should appear as follows:
+The output is decoded text instead of token IDs.
+
+> **Note:** The tokenizer extension (`llm_tokenizer.so`) is
+> automatically located relative to the `llm_ops.so` path.  You can
+> override it with the `LLM_TOKENIZER_EXTENSION_PATH` environment
+> variable.
 
 <p align="center">
   <img src="figures/c-cpp-demo.png" alt="C and C++ Demo" width="100%">
@@ -65,30 +81,8 @@ The same `5` token ids were also re-validated against the Python `StandaloneEngi
   <small>C/C++ Demo: Running Qwen-2.5-0.5B-Instruct on llm.sql</small>
 </p>
 
-## 4. Run Qwen with string prompt (no token IDs needed)
-
-The string-based demos use a built-in BPE tokenizer that reads the
-vocabulary from the SQLite model database and merge rules from
-`tokenizer.json`.  No external tokenizer library is required.
-
-Build both binaries:
+## 4. Run tokenizer extension tests
 
 ```bash
-make -C demo c_qwen_graph_string cpp_qwen_graph_string
+make -C sqlite-llm test-tokenizer
 ```
-
-Run the C demo with a plain-text prompt:
-
-```bash
-LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
-  ./demo/c_qwen_graph_string /path/to/exported/model "hello" 5 model_int8.db
-```
-
-Run the C++ demo:
-
-```bash
-LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
-  ./demo/cpp_qwen_graph_string /path/to/exported/model "hello" 5 model_int8.db
-```
-
-The output is decoded text instead of token IDs.
