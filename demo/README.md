@@ -64,3 +64,31 @@ The same `5` token ids were also re-validated against the Python `StandaloneEngi
   <br>
   <small>C/C++ Demo: Running Qwen-2.5-0.5B-Instruct on llm.sql</small>
 </p>
+
+## 4. Run Qwen with string prompt (no token IDs needed)
+
+The string-based demos use a built-in BPE tokenizer that reads the
+vocabulary from the SQLite model database and merge rules from
+`tokenizer.json`.  No external tokenizer library is required.
+
+Build both binaries:
+
+```bash
+make -C demo c_qwen_graph_string cpp_qwen_graph_string
+```
+
+Run the C demo with a plain-text prompt:
+
+```bash
+LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
+  ./demo/c_qwen_graph_string /path/to/exported/model "hello" 5 model_int8.db
+```
+
+Run the C++ demo:
+
+```bash
+LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
+  ./demo/cpp_qwen_graph_string /path/to/exported/model "hello" 5 model_int8.db
+```
+
+The output is decoded text instead of token IDs.
