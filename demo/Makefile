@@ -9,15 +9,12 @@ CFLAGS ?= -O2 -Wall -Wextra -Wpedantic
 CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -Wpedantic
 NATIVE_RUNTIME_SRC := native_graph_runtime.c
 NATIVE_RUNTIME_OBJ := native_graph_runtime.o
-BPE_TOKENIZER_SRC := bpe_tokenizer.c
-BPE_TOKENIZER_OBJ := bpe_tokenizer.o
 
 TOY_DB ?= /tmp/toy_model.db
 START_TOKEN ?= A
 MAX_TOKENS ?= 3
 EXTENSION_PATH ?= ../sqlite-llm/llm_ops.so
 MODEL_DIR ?= /tmp/llm_sql_qwen2_05b_demo
-TOKEN_CSV ?= 14990
 QWEN_DB ?= model.db
 PROMPT ?= hello
 
@@ -40,9 +37,6 @@ c_qwen_graph_tokens: c_qwen_graph_tokens.c $(NATIVE_RUNTIME_OBJ) native_graph_ru
 cpp_qwen_graph_tokens: cpp_qwen_graph_tokens.cpp $(NATIVE_RUNTIME_OBJ) native_graph_runtime.h
 	$(CXX) $(CXXFLAGS) $(SQLITE_CFLAGS) -o $@ cpp_qwen_graph_tokens.cpp $(NATIVE_RUNTIME_OBJ) $(SQLITE_LIBS) -ldl -lm
 
-$(BPE_TOKENIZER_OBJ): $(BPE_TOKENIZER_SRC) bpe_tokenizer.h
-	$(CC) $(CFLAGS) $(SQLITE_CFLAGS) -c -o $@ $(BPE_TOKENIZER_SRC)
-
 c_qwen_graph_string: c_qwen_graph_string.c $(NATIVE_RUNTIME_OBJ) native_graph_runtime.h
 	$(CC) $(CFLAGS) $(SQLITE_CFLAGS) -o $@ c_qwen_graph_string.c $(NATIVE_RUNTIME_OBJ) $(SQLITE_LIBS) -ldl -lm
 
@@ -59,10 +53,10 @@ run-cpp: cpp_toy_sql_infer toy-db
 	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./cpp_toy_sql_infer $(TOY_DB) $(START_TOKEN) $(MAX_TOKENS)
 
 run-qwen-c: c_qwen_graph_tokens
-	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./c_qwen_graph_tokens $(MODEL_DIR) $(TOKEN_CSV) $(MAX_TOKENS) $(QWEN_DB)
+	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./c_qwen_graph_tokens $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
 
 run-qwen-cpp: cpp_qwen_graph_tokens
-	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./cpp_qwen_graph_tokens $(MODEL_DIR) $(TOKEN_CSV) $(MAX_TOKENS) $(QWEN_DB)
+	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./cpp_qwen_graph_tokens $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
 
 run-qwen-str-c: c_qwen_graph_string
 	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./c_qwen_graph_string $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
@@ -71,4 +65,4 @@ run-qwen-str-cpp: cpp_qwen_graph_string
 	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./cpp_qwen_graph_string $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
 
 clean:
-	rm -f c_toy_sql_infer cpp_toy_sql_infer c_qwen_graph_tokens cpp_qwen_graph_tokens c_qwen_graph_string cpp_qwen_graph_string $(NATIVE_RUNTIME_OBJ) $(BPE_TOKENIZER_OBJ)
+	rm -f c_toy_sql_infer cpp_toy_sql_infer c_qwen_graph_tokens cpp_qwen_graph_tokens c_qwen_graph_string cpp_qwen_graph_string $(NATIVE_RUNTIME_OBJ)
