@@ -1,6 +1,11 @@
 /*
  * Standalone BPE tokenizer implementation for llm.sql C/C++ demos.
  *
+ * NOTE: This is a legacy implementation.  Demos now use the
+ * ``llm_tokenizer`` SQLite extension (sqlite-llm/llm_tokenizer.c)
+ * which provides the same functionality as SQL functions, usable
+ * from any language with SQLite bindings.
+ *
  * Vocab is loaded from the SQLite ``vocab`` table; BPE merge rules
  * are parsed from the HuggingFace ``tokenizer.json`` shipped with the
  * exported model.  No external tokenizer library is required.
