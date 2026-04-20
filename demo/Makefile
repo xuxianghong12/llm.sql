@@ -43,11 +43,11 @@ cpp_qwen_graph_tokens: cpp_qwen_graph_tokens.cpp $(NATIVE_RUNTIME_OBJ) native_gr
 $(BPE_TOKENIZER_OBJ): $(BPE_TOKENIZER_SRC) bpe_tokenizer.h
 	$(CC) $(CFLAGS) $(SQLITE_CFLAGS) -c -o $@ $(BPE_TOKENIZER_SRC)
 
-c_qwen_graph_string: c_qwen_graph_string.c $(NATIVE_RUNTIME_OBJ) $(BPE_TOKENIZER_OBJ) native_graph_runtime.h bpe_tokenizer.h
-	$(CC) $(CFLAGS) $(SQLITE_CFLAGS) -o $@ c_qwen_graph_string.c $(NATIVE_RUNTIME_OBJ) $(BPE_TOKENIZER_OBJ) $(SQLITE_LIBS) -ldl -lm
+c_qwen_graph_string: c_qwen_graph_string.c $(NATIVE_RUNTIME_OBJ) native_graph_runtime.h
+	$(CC) $(CFLAGS) $(SQLITE_CFLAGS) -o $@ c_qwen_graph_string.c $(NATIVE_RUNTIME_OBJ) $(SQLITE_LIBS) -ldl -lm
 
-cpp_qwen_graph_string: cpp_qwen_graph_string.cpp $(NATIVE_RUNTIME_OBJ) $(BPE_TOKENIZER_OBJ) native_graph_runtime.h bpe_tokenizer.h
-	$(CXX) $(CXXFLAGS) $(SQLITE_CFLAGS) -o $@ cpp_qwen_graph_string.cpp $(NATIVE_RUNTIME_OBJ) $(BPE_TOKENIZER_OBJ) $(SQLITE_LIBS) -ldl -lm
+cpp_qwen_graph_string: cpp_qwen_graph_string.cpp $(NATIVE_RUNTIME_OBJ) native_graph_runtime.h
+	$(CXX) $(CXXFLAGS) $(SQLITE_CFLAGS) -o $@ cpp_qwen_graph_string.cpp $(NATIVE_RUNTIME_OBJ) $(SQLITE_LIBS) -ldl -lm
 
 toy-db:
 	$(PYTHON) make_toy_db.py --output $(TOY_DB)
