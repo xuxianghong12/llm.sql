@@ -18,7 +18,7 @@ import os
 import sqlite3
 import sys
 import time as _time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
 import numpy as np
 import torch
@@ -615,35 +615,40 @@ CREATE TABLE IF NOT EXISTS {_PARAM_TABLE} (
 
 def save_params_to_db(
     conn: sqlite3.Connection,
-    param_data: Dict[str, bytes],
+    param_data: Mapping[str, bytes] | Iterable[Tuple[str, bytes]],
 ) -> None:
     """Persist parameter BLOBs into the ``model_params`` table.
 
     Creates the table if it does not exist, then inserts or replaces
-    each entry from *param_data*.  Metadata columns (ndim, shape) are
-    derived from the BLOB header so they can be queried cheaply later.
+    each entry from *param_data*.  *param_data* may be either a mapping
+    or an iterable of ``(name, blob)`` pairs so callers can stream large
+    models into SQLite without materialising every serialized BLOB at once.
+    Metadata columns (ndim, shape) are derived from the BLOB header so
+    they can be queried cheaply later.
     """
     import json, struct as _st
 
     conn.execute(_CREATE_PARAM_TABLE_SQL)
     _MAGIC = _st.unpack('<i', _st.pack('<I', 0x80000000))[0]
 
-    rows: List[Tuple] = []
-    for name, blob in param_data.items():
-        first_int = _st.unpack_from('<i', blob, 0)[0]
-        if first_int == _MAGIC:
-            ndim = _st.unpack_from('<i', blob, 4)[0]
-            shape = list(_st.unpack_from(f'<{ndim}i', blob, 8))
-        else:
-            # Legacy 1-D
-            ndim = 1
-            shape = [first_int]
-        rows.append((name, blob, ndim, json.dumps(shape), 'float32'))
+    items = param_data.items() if hasattr(param_data, 'items') else param_data
+
+    def _iter_rows() -> Iterable[Tuple[str, bytes, int, str, str]]:
+        for name, blob in items:
+            first_int = _st.unpack_from('<i', blob, 0)[0]
+            if first_int == _MAGIC:
+                ndim = _st.unpack_from('<i', blob, 4)[0]
+                shape = list(_st.unpack_from(f'<{ndim}i', blob, 8))
+            else:
+                # Legacy 1-D
+                ndim = 1
+                shape = [first_int]
+            yield (name, blob, ndim, json.dumps(shape), 'float32')
 
     conn.executemany(
         f"INSERT OR REPLACE INTO {_PARAM_TABLE}"
         f" (name, data, ndim, shape, dtype) VALUES (?, ?, ?, ?, ?)",
-        rows,
+        _iter_rows(),
     )
     conn.commit()
 
