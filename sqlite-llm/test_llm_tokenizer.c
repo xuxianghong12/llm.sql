@@ -137,7 +137,8 @@ static sqlite3 *create_test_db(void) {
         "INSERT INTO vocab VALUES(4, 'o', 0);"
         "INSERT INTO vocab VALUES(5, 'he', 0);"
         "INSERT INTO vocab VALUES(6, 'll', 0);"
-        "INSERT INTO vocab VALUES(7, 'hello', 0);",
+        "INSERT INTO vocab VALUES(7, 'hello', 0);"
+        "INSERT INTO vocab VALUES(8, 'Ġhello', 0);",
         NULL,
         NULL,
         NULL);
@@ -274,6 +275,28 @@ static void test_detokenize(sqlite3 *db) {
         CHECK(text != NULL &&
                   strcmp(text, "hello") == 0,
               "detokenize [5,6,4] -> 'hello'");
+    }
+    sqlite3_finalize(stmt);
+
+    /* Byte-BPE token Ġhello should detokenize to leading-space text. */
+    rc = sqlite3_prepare_v2(
+        db,
+        "SELECT llm_detokenize(X'08000000')",
+        -1,
+        &stmt,
+        NULL);
+    CHECK(rc == SQLITE_OK,
+          "prepare detokenize byte-bpe");
+    rc = sqlite3_step(stmt);
+    CHECK(rc == SQLITE_ROW,
+          "step detokenize byte-bpe");
+    {
+        const char *text =
+            (const char *)sqlite3_column_text(
+                stmt, 0);
+        CHECK(text != NULL &&
+                  strcmp(text, " hello") == 0,
+              "detokenize Ġhello -> ' hello'");
     }
     sqlite3_finalize(stmt);
 

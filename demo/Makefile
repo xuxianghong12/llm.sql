@@ -12,6 +12,7 @@ NATIVE_RUNTIME_OBJ := native_graph_runtime.o
 MAX_TOKENS ?= 3
 EXTENSION_PATH ?= ../sqlite-llm/llm_ops.so
 MODEL_DIR ?= /tmp/llm_sql_qwen2_05b_demo
+TOKEN_CSV ?= 14990
 QWEN_DB ?= model.db
 PROMPT ?= hello
 
@@ -35,10 +36,10 @@ cpp_qwen_graph_string: cpp_qwen_graph_string.cpp $(NATIVE_RUNTIME_OBJ) native_gr
 	$(CXX) $(CXXFLAGS) $(SQLITE_CFLAGS) -o $@ cpp_qwen_graph_string.cpp $(NATIVE_RUNTIME_OBJ) $(SQLITE_LIBS) -ldl -lm
 
 run-qwen-c: c_qwen_graph_tokens
-	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./c_qwen_graph_tokens $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
+	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./c_qwen_graph_tokens $(MODEL_DIR) $(TOKEN_CSV) $(MAX_TOKENS) $(QWEN_DB)
 
 run-qwen-cpp: cpp_qwen_graph_tokens
-	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./cpp_qwen_graph_tokens $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
+	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./cpp_qwen_graph_tokens $(MODEL_DIR) $(TOKEN_CSV) $(MAX_TOKENS) $(QWEN_DB)
 
 run-qwen-str-c: c_qwen_graph_string
 	LLM_SQL_EXTENSION_PATH=$(EXTENSION_PATH) ./c_qwen_graph_string $(MODEL_DIR) "$(PROMPT)" $(MAX_TOKENS) $(QWEN_DB)
