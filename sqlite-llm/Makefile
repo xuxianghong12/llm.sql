@@ -2,7 +2,7 @@
 #
 # Targets:
 #   all          build llm_ops.so (x86 SIMD + pthreads only)
-#   test         build and run test_llm_ops
+#   test         build and run test_llm_ops_x86
 #   clean        remove build artefacts
 #
 # Requirements:
@@ -108,10 +108,10 @@ test-tokenizer: $(TEST_TOKENIZER_BIN)
 	./$(TEST_TOKENIZER_BIN)
 
 # ── Test binary ───────────────────────────────────────────────────────────
-TEST_BIN  := test_llm_ops
+TEST_BIN  := test_llm_ops_x86
 
-$(TEST_BIN): test_llm_ops.c $(SONAME)
-	$(CC) -O2 -o $@ test_llm_ops.c \
+$(TEST_BIN): test_llm_ops_x86.c $(SONAME)
+	$(CC) -O2 -o $@ test_llm_ops_x86.c \
 	    $(SQLITE_INC) \
 	    $(SQLITE_LIB) \
 	    -lm

@@ -2687,11 +2687,19 @@ static void sql_mean_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     memset(idx, 0, sizeof(idx));
     for (int32_t flat = 0; flat < t.total; flat++) {
         /* Map input flat index → output flat index (drop/collapse dim) */
-        int32_t out_off = 0, j = 0;
-        for (int d = 0; d < t.ndim; d++) {
-            if (d == dim)
-                continue;
-            out_off += idx[d] * out_strides[j++];
+        int32_t out_off = 0;
+        if (keepdim) {
+            for (int d = 0; d < t.ndim; d++) {
+                int32_t coord = (d == dim) ? 0 : idx[d];
+                out_off += coord * out_strides[d];
+            }
+        } else {
+            int j = 0;
+            for (int d = 0; d < t.ndim; d++) {
+                if (d == dim)
+                    continue;
+                out_off += idx[d] * out_strides[j++];
+            }
         }
         dst[out_off] += t.data[flat];
         for (int d = t.ndim - 1; d >= 0; d--) {
@@ -2755,11 +2763,19 @@ static void sql_sum_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     int32_t idx[LLM_MAX_NDIM];
     memset(idx, 0, sizeof(idx));
     for (int32_t flat = 0; flat < t.total; flat++) {
-        int32_t out_off = 0, j = 0;
-        for (int d = 0; d < t.ndim; d++) {
-            if (d == dim)
-                continue;
-            out_off += idx[d] * out_strides[j++];
+        int32_t out_off = 0;
+        if (keepdim) {
+            for (int d = 0; d < t.ndim; d++) {
+                int32_t coord = (d == dim) ? 0 : idx[d];
+                out_off += coord * out_strides[d];
+            }
+        } else {
+            int j = 0;
+            for (int d = 0; d < t.ndim; d++) {
+                if (d == dim)
+                    continue;
+                out_off += idx[d] * out_strides[j++];
+            }
         }
         dst[out_off] += t.data[flat];
         for (int d = t.ndim - 1; d >= 0; d--) {
