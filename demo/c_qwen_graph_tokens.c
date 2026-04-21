@@ -1,12 +1,13 @@
 /*
- * C demo: run Qwen inference with string prompt input/output.
+ * C demo: show SQLite tokenizer token flow around Qwen inference.
  *
  * Usage:
  *   c_qwen_graph_tokens <model_dir> <prompt> <max_tokens> [db]
  *
- * This demo (formerly token-ID based) now accepts a plain-text
- * prompt and prints decoded output.  Tokenization is performed
- * via the llm_tokenizer SQLite extension.
+ * This demo focuses on token in / token out flow through the
+ * llm_tokenizer SQLite extension: encode the prompt with SQL,
+ * run inference on token IDs, then decode generated token IDs
+ * back to text with SQL.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
