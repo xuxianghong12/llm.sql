@@ -4,7 +4,7 @@ CXX ?= g++
 SQLITE_CFLAGS := $(shell pkg-config --cflags sqlite3 2>/dev/null)
 SQLITE_LIBS := $(shell pkg-config --libs sqlite3 2>/dev/null || echo -lsqlite3)
 
-CFLAGS ?= -O2 -Wall -Wextra -Wpedantic
+CFLAGS ?= -O2 -std=c11 -Wall -Wextra -Wpedantic
 CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -Wpedantic
 NATIVE_RUNTIME_SRC := native_graph_runtime.c
 NATIVE_RUNTIME_OBJ := native_graph_runtime.o

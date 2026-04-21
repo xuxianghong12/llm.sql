@@ -88,7 +88,7 @@ $(PARAM_MGR_SO): $(PARAM_MGR_SRC) llm_param_mgr.h llm_pcache.h $(PCACHE_SO)
 
 # ── Tokenizer shared library ──────────────────────────────────────────────
 $(TOKENIZER_SO): $(TOKENIZER_SRC)
-	$(CC) -O2 -Wall -Wextra -Wpedantic -fPIC -fvisibility=hidden \
+	$(CC) -O2 -std=c11 -Wall -Wextra -Wpedantic -fPIC -fvisibility=hidden \
 	    $(SQLITE_INC) \
 	    -shared -o $@ $(TOKENIZER_SRC) \
 	    $(SQLITE_LIB)
@@ -100,7 +100,7 @@ $(TOKENIZER_SO): $(TOKENIZER_SRC)
 TEST_TOKENIZER_BIN := test_llm_tokenizer
 
 $(TEST_TOKENIZER_BIN): test_llm_tokenizer.c $(TOKENIZER_SO)
-	$(CC) -O2 -Wall -Wextra -Wpedantic -o $@ test_llm_tokenizer.c \
+	$(CC) -O2 -std=c11 -Wall -Wextra -Wpedantic -o $@ test_llm_tokenizer.c \
 	    $(SQLITE_INC) \
 	    $(SQLITE_LIB)
 
