@@ -13,3 +13,10 @@ dist/
 exports/
 .github/skills
 .vscode/
+demo/c_toy_sql_infer
+demo/cpp_toy_sql_infer
+demo/c_qwen_graph_tokens
+demo/cpp_qwen_graph_tokens
+demo/c_qwen_graph_string
+demo/cpp_qwen_graph_string
+sqlite-llm/test_llm_tokenizer

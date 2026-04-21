@@ -1,13 +1,11 @@
 /*
- * C++ demo: show SQLite tokenizer token flow around Qwen inference.
+ * C++ demo: run Qwen inference with string prompt input/output.
  *
  * Usage:
- *   cpp_qwen_graph_tokens <model_dir> <prompt> <max_tokens> [db]
+ *   cpp_qwen_graph_string <model_dir> <prompt> <max_tokens> [db]
  *
- * This demo focuses on token in / token out flow through the
- * llm_tokenizer SQLite extension: encode the prompt with SQL,
- * run inference on token IDs, then decode generated token IDs
- * back to text with SQL.
+ * Tokenization is performed via the llm_tokenizer SQLite extension
+ * (loaded alongside llm_ops), so no C tokenizer library is linked.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -267,8 +265,11 @@ int main(int argc, char **argv) {
     std::string jsonPath =
         joinPath(modelDir, "tokenizer.json");
 
+    /* Open db + load extensions */
     SqlitePtr tokDb = openModelDb(
-        dbPath, extensionPath, tokExtPath);
+        dbPath,
+        extensionPath,
+        tokExtPath);
     if (!tokDb) {
         std::cerr << "failed to open model db: "
                   << dbPath << "\n";
@@ -320,6 +321,7 @@ int main(int argc, char **argv) {
     if (!output.empty()) {
         std::cout << output << "\n";
     } else {
+        /* fallback: print raw token ids */
         for (int i = 0;
              i < genGuard.gen.token_count;
              ++i) {

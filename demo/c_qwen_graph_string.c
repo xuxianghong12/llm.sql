@@ -1,20 +1,17 @@
 /*
- * C demo: show SQLite tokenizer token flow around Qwen inference.
+ * C demo: run Qwen inference with string prompt input/output.
  *
  * Usage:
- *   c_qwen_graph_tokens <model_dir> <prompt> <max_tokens> [db]
+ *   c_qwen_graph_string <model_dir> <prompt> <max_tokens> [db]
  *
- * This demo focuses on token in / token out flow through the
- * llm_tokenizer SQLite extension: encode the prompt with SQL,
- * run inference on token IDs, then decode generated token IDs
- * back to text with SQL.
+ * Tokenization is performed via the llm_tokenizer SQLite extension
+ * (loaded alongside llm_ops), so no C tokenizer library is linked.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "native_graph_runtime.h"
 
 #include <sqlite3.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +64,11 @@ static const char *resolve_db(
 
 /* ── tokenizer helpers via SQL ─────────────────────────────── */
 
+/*
+ * Open the model db, load llm_ops + llm_tokenizer extensions,
+ * then use SQL to encode/decode.
+ */
+
 static sqlite3 *open_model_db(
     const char *db_path,
     const char *ext_path,
@@ -87,6 +89,7 @@ static sqlite3 *open_model_db(
     }
     sqlite3_enable_load_extension(db, 1);
 
+    /* Load llm_ops (needed by the runtime) */
     if (sqlite3_load_extension(
             db,
             ext_path,
@@ -100,6 +103,7 @@ static sqlite3 *open_model_db(
         return NULL;
     }
 
+    /* Load llm_tokenizer */
     if (sqlite3_load_extension(
             db,
             tok_ext_path,
@@ -116,6 +120,7 @@ static sqlite3 *open_model_db(
     return db;
 }
 
+/* Encode text to int32 BLOB via SQL, then extract token IDs. */
 static int sql_encode(
     sqlite3 *db,
     const char *text,
@@ -135,8 +140,7 @@ static int sql_encode(
     if (rc != SQLITE_OK) {
         return 0;
     }
-    sqlite3_bind_text(
-        stmt, 1, text, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, text, -1, SQLITE_STATIC);
     sqlite3_bind_text(
         stmt, 2, json_path, -1, SQLITE_STATIC);
 
@@ -168,6 +172,7 @@ static int sql_encode(
     return 1;
 }
 
+/* Decode int32 token IDs to text via SQL. */
 static char *sql_decode(
     sqlite3 *db,
     const int *ids,
@@ -227,7 +232,7 @@ int main(int argc, char **argv) {
         getenv("LLM_TOKENIZER_EXTENSION_PATH");
     const char *thread_env = getenv("LLM_SQL_THREADS");
     const char *db_filename;
-    const char *resolved;
+    const char *resolved_db;
     char *db_path = NULL;
     char *json_path = NULL;
     char *tok_ext_path = NULL;
@@ -242,8 +247,8 @@ int main(int argc, char **argv) {
     if (argc < 4 || argc > 5) {
         fprintf(
             stderr,
-            "usage: %s <model_dir> <prompt> "
-            "<max_tokens> [db_filename]\n",
+            "usage: %s <model_dir> <prompt> <max_tokens>"
+            " [db_filename]\n",
             argv[0]);
         return 1;
     }
@@ -258,7 +263,8 @@ int main(int argc, char **argv) {
         extension_path = "./sqlite-llm/llm_ops.so";
     }
 
-    /* Derive tokenizer ext path */
+    /* Derive tokenizer extension path from llm_ops path
+     * by replacing the filename. */
     if (tok_ext_env != NULL &&
         tok_ext_env[0] != '\0') {
         tok_ext_path = strdup(tok_ext_env);
@@ -267,8 +273,7 @@ int main(int argc, char **argv) {
             strrchr(extension_path, '/');
         if (last_slash != NULL) {
             size_t dir_len =
-                (size_t)(last_slash -
-                         extension_path + 1);
+                (size_t)(last_slash - extension_path + 1);
             tok_ext_path = (char *)malloc(
                 dir_len + sizeof("llm_tokenizer.so"));
             if (tok_ext_path != NULL) {
@@ -280,8 +285,7 @@ int main(int argc, char **argv) {
                        sizeof("llm_tokenizer.so"));
             }
         } else {
-            tok_ext_path =
-                strdup("./llm_tokenizer.so");
+            tok_ext_path = strdup("./llm_tokenizer.so");
         }
     }
     if (tok_ext_path == NULL) {
@@ -291,8 +295,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    resolved = resolve_db(argv[1], db_filename);
-    db_path = join_path(argv[1], resolved);
+    /* Resolve db and build paths */
+    resolved_db = resolve_db(argv[1], db_filename);
+    db_path = join_path(argv[1], resolved_db);
     json_path = join_path(argv[1], "tokenizer.json");
     if (db_path == NULL || json_path == NULL) {
         fprintf(stderr, "out of memory\n");
@@ -302,6 +307,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* Open db + load extensions for tokenization */
     tok_db = open_model_db(
         db_path, extension_path, tok_ext_path);
     if (tok_db == NULL) {
@@ -369,6 +375,7 @@ int main(int argc, char **argv) {
             printf("%s\n", output_text);
             free(output_text);
         } else {
+            /* fallback: print raw token ids */
             for (int i = 0;
                  i < generation.token_count;
                  ++i) {
