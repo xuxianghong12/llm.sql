@@ -41,7 +41,7 @@ Example in the SQLite shell:
 ```sql
 .load ./sqlite-llm/llm_tokenizer
 SELECT hex(llm_tokenize('hello', '/path/to/exported/model/tokenizer.json'));
-SELECT llm_detokenize(X'08000000');
+SELECT llm_detokenize(llm_tokenize('hello', '/path/to/exported/model/tokenizer.json'));
 SELECT llm_token_count(llm_tokenize('hello', '/path/to/exported/model/tokenizer.json'));
 SELECT llm_token_at(llm_tokenize('hello', '/path/to/exported/model/tokenizer.json'), 0);
 ```
