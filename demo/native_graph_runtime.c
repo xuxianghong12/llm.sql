@@ -13,6 +13,21 @@
 
 #define ND_MAGIC 0x80000000u
 
+static char *llmsql_runtime_strdup(const char *src) {
+    size_t len;
+    char *copy;
+    if (src == NULL) {
+        return NULL;
+    }
+    len = strlen(src);
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL) {
+        return NULL;
+    }
+    memcpy(copy, src, len + 1);
+    return copy;
+}
+
 typedef struct {
     void *data;
     int size;
@@ -1375,8 +1390,8 @@ int llmsql_native_generate_tokens(
     }
 
     db_path = join_path(model_dir, resolved_db);
-    prefill_path = prefill_graph_path != NULL ? strdup(prefill_graph_path) : join_path(model_dir, "prefill.native.json");
-    decode_path = decode_graph_path != NULL ? strdup(decode_graph_path) : join_path(model_dir, "decode.native.json");
+    prefill_path = prefill_graph_path != NULL ? llmsql_runtime_strdup(prefill_graph_path) : join_path(model_dir, "prefill.native.json");
+    decode_path = decode_graph_path != NULL ? llmsql_runtime_strdup(decode_graph_path) : join_path(model_dir, "decode.native.json");
     if (db_path == NULL || prefill_path == NULL || decode_path == NULL) {
         set_error(error_buf, error_buf_size, "out of memory resolving runtime paths");
         goto cleanup;

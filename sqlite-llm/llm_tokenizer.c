@@ -35,6 +35,21 @@ SQLITE_EXTENSION_INIT1
 #include <stdlib.h>
 #include <string.h>
 
+static char *llmsql_strdup(const char *src) {
+    size_t len;
+    char *copy;
+    if (src == NULL) {
+        return NULL;
+    }
+    len = strlen(src);
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL) {
+        return NULL;
+    }
+    memcpy(copy, src, len + 1);
+    return copy;
+}
+
 /* ================================================================== */
 /*  GPT-2 style byte <-> unicode mapping                              */
 /* ================================================================== */
@@ -275,7 +290,7 @@ static int ht_put(HashTable *ht, const char *key, int value) {
         }
         idx = (idx + 1) % (uint32_t)ht->cap;
     }
-    ht->entries[idx].key = strdup(key);
+    ht->entries[idx].key = llmsql_strdup(key);
     if (ht->entries[idx].key == NULL) {
         return 0;
     }
@@ -421,7 +436,7 @@ static int load_vocab_from_conn(
             text == NULL) {
             continue;
         }
-        tok->id_to_token[tid] = strdup(text);
+        tok->id_to_token[tid] = llmsql_strdup(text);
         tok->is_special[tid] = is_sp;
         ht_put(&tok->token_to_id, text, tid);
     }
@@ -853,7 +868,7 @@ static int load_merges_from_json(
                                             [tid] ==
                                         NULL) {
                                     tok->id_to_token
-                                        [tid] = strdup(
+                                        [tid] = llmsql_strdup(
                                         json_vocab
                                             .entries[i]
                                             .key);

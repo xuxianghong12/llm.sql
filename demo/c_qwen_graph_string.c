@@ -12,6 +12,7 @@
 #include "native_graph_runtime.h"
 
 #include <sqlite3.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,21 @@ static char *join_path(
     }
     memcpy(buf + dlen, name, nlen + 1);
     return buf;
+}
+
+static char *dup_string(const char *text) {
+    size_t len;
+    char *copy;
+    if (text == NULL) {
+        return NULL;
+    }
+    len = strlen(text);
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL) {
+        return NULL;
+    }
+    memcpy(copy, text, len + 1);
+    return copy;
 }
 
 static const char *resolve_db(
@@ -215,12 +231,23 @@ static char *sql_decode(
             (const char *)sqlite3_column_text(
                 stmt, 0);
         if (text != NULL) {
-            result = strdup(text);
+            result = dup_string(text);
         }
     }
     sqlite3_finalize(stmt);
     free(blob);
     return result;
+}
+
+static void print_token_ids(const int *ids, int count) {
+    printf("token_ids: ");
+    for (int i = 0; i < count; ++i) {
+        if (i > 0) {
+            printf(",");
+        }
+        printf("%d", ids[i]);
+    }
+    printf("\n");
 }
 
 /* ── main ──────────────────────────────────────────────────── */
@@ -267,7 +294,7 @@ int main(int argc, char **argv) {
      * by replacing the filename. */
     if (tok_ext_env != NULL &&
         tok_ext_env[0] != '\0') {
-        tok_ext_path = strdup(tok_ext_env);
+        tok_ext_path = dup_string(tok_ext_env);
     } else {
         const char *last_slash =
             strrchr(extension_path, '/');
@@ -285,7 +312,7 @@ int main(int argc, char **argv) {
                        sizeof("llm_tokenizer.so"));
             }
         } else {
-            tok_ext_path = strdup("./llm_tokenizer.so");
+            tok_ext_path = dup_string("./llm_tokenizer.so");
         }
     }
     if (tok_ext_path == NULL) {
@@ -371,20 +398,14 @@ int main(int argc, char **argv) {
             tok_db,
             generation.token_ids,
             generation.token_count);
+        print_token_ids(
+            generation.token_ids,
+            generation.token_count);
         if (output_text != NULL) {
-            printf("%s\n", output_text);
+            printf("decoded_text: %s\n", output_text);
             free(output_text);
         } else {
-            /* fallback: print raw token ids */
-            for (int i = 0;
-                 i < generation.token_count;
-                 ++i) {
-                if (i > 0) {
-                    printf(",");
-                }
-                printf("%d", generation.token_ids[i]);
-            }
-            printf("\n");
+            printf("decoded_text: \n");
         }
     }
 

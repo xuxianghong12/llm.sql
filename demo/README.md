@@ -48,22 +48,19 @@ SELECT llm_token_at(llm_tokenize('hello', '/path/to/exported/model/tokenizer.jso
 
 ## 4. C / C++ token-in token-out usage
 
-`c_qwen_graph_tokens` and `cpp_qwen_graph_tokens` show the token flow:
+`c_qwen_graph_tokens` and `cpp_qwen_graph_tokens` keep the original
+token-ID input/output flow:
 
-1. open model SQLite db
-2. load `llm_ops.so`
-3. load `llm_tokenizer.so`
-4. call `SELECT llm_tokenize(?1, ?2)` to get prompt token blob
-5. convert blob to `int[]` / `std::vector<int>`
-6. run inference with `llmsql_native_generate_tokens(...)`
-7. call `SELECT llm_detokenize(?1)` to decode generated token ids
+1. parse the input CSV token IDs
+2. run inference with `llmsql_native_generate_tokens(...)`
+3. print generated token IDs as CSV
 
 Run the C demo:
 
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
 LLM_TOKENIZER_EXTENSION_PATH=./sqlite-llm/llm_tokenizer.so \
-./demo/c_qwen_graph_tokens /path/to/exported/model "hello" 5 model.db
+./demo/c_qwen_graph_tokens /path/to/exported/model 14990 5 model.db
 ```
 
 Run the C++ demo:
@@ -71,13 +68,14 @@ Run the C++ demo:
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
 LLM_TOKENIZER_EXTENSION_PATH=./sqlite-llm/llm_tokenizer.so \
-./demo/cpp_qwen_graph_tokens /path/to/exported/model "hello" 5 model.db
+./demo/cpp_qwen_graph_tokens /path/to/exported/model 14990 5 model.db
 ```
 
 ## 5. C / C++ string prompt demo
 
 `c_qwen_graph_string` and `cpp_qwen_graph_string` are the string-prompt
-variants and use the same SQLite tokenizer plugin internally.
+variants and use the same SQLite tokenizer plugin internally. They print
+both the generated token IDs and the detokenized human-readable text.
 
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \

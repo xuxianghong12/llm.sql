@@ -209,6 +209,20 @@ std::string sqlDecode(
     return result;
 }
 
+void printTokenIds(
+    const int *ids,
+    int count
+) {
+    std::cout << "token_ids: ";
+    for (int i = 0; i < count; ++i) {
+        if (i > 0) {
+            std::cout << ',';
+        }
+        std::cout << ids[i];
+    }
+    std::cout << '\n';
+}
+
 } // namespace
 
 /* ── main ──────────────────────────────────────────────────── */
@@ -318,20 +332,10 @@ int main(int argc, char **argv) {
         tokDb.get(),
         genGuard.gen.token_ids,
         genGuard.gen.token_count);
-    if (!output.empty()) {
-        std::cout << output << "\n";
-    } else {
-        /* fallback: print raw token ids */
-        for (int i = 0;
-             i < genGuard.gen.token_count;
-             ++i) {
-            if (i > 0) {
-                std::cout << ',';
-            }
-            std::cout << genGuard.gen.token_ids[i];
-        }
-        std::cout << '\n';
-    }
+    printTokenIds(
+        genGuard.gen.token_ids,
+        genGuard.gen.token_count);
+    std::cout << "decoded_text: " << output << "\n";
 
     return 0;
 }
