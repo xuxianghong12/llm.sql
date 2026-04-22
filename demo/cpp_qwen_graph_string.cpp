@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
         std::getenv("LLM_SQL_THREADS");
     const char *dbFilename =
         positionalArgs.size() >= 4 ? positionalArgs[3] : nullptr;
-    int numThreads = 4;
+    int numThreads = 1;
 
     if (threadEnv != nullptr && threadEnv[0] != '\0') {
         numThreads = std::atoi(threadEnv);

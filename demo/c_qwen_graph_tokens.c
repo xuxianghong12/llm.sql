@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     int *prompt_ids = NULL;
     int prompt_len = 0;
     int max_tokens;
-    int num_threads = 4;
+    int num_threads = 1;
     int positional_count = 0;
     int profile_enabled = 0;
 

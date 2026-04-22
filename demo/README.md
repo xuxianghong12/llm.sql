@@ -2,7 +2,7 @@
  * @Author: xuxianghong12
  * @Date: 2026-04-14 12:23:20
  * @LastEditors: xuxianghong12
- * @LastEditTime: 2026-04-23 00:01:57
+ * @LastEditTime: 2026-04-23 00:09:48
  * @SPDX-License-Identifier: Apache-2.0
 -->
 # Demo: load tokenizer SQLite plugin from C and C++
@@ -99,7 +99,7 @@ LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
 </p>
 
 
-**Highlight:** Running the Qwen2.5-0.5B-INT8 model (about **640MB**) on llm.sql in C/C++ with a maximum of 64 tokens achieves approximately **7.25 tokens/s**, with a peak memory usage (Peak RSS) of around **210MB**.
+**Highlight:** Running the Qwen2.5-0.5B-INT8 model (about **640MB**) on llm.sql in C/C++ with a maximum of 64 tokens achieves approximately **7.40 tokens/s**, with a peak memory usage (Peak RSS) of around **210MB**.
 
 
 ## 5. C / C++ string prompt demo (WIP)
@@ -127,3 +127,6 @@ If `LLM_TOKENIZER_EXTENSION_PATH` is not set, the demos try to locate
 ```bash
 make -C sqlite-llm test-tokenizer
 ```
+
+# TODO
+- C/C++ thread is not effect, to fix it in the future.

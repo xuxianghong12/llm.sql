@@ -1,3 +1,10 @@
+/*
+ * @SPDX-License-Identifier: Apache-2.0
+ * @Author: xuxianghong12
+ * @Date: 2026-04-22 07:56:41
+ * @LastEditTime: 2026-04-23 00:08:05
+ * @LastEditors: xuxianghong12
+ */
 #include "native_graph_runtime.h"
 
 #include <cstdlib>
@@ -49,7 +56,7 @@ int main(int argc, char **argv) {
 
     const char *extensionPath = std::getenv("LLM_SQL_EXTENSION_PATH");
     const char *threadEnv = std::getenv("LLM_SQL_THREADS");
-    int numThreads = 4;
+    int numThreads = 1;
     if (threadEnv != nullptr && threadEnv[0] != '\0') {
         numThreads = std::atoi(threadEnv);
     }
