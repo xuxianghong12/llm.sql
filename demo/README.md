@@ -2,7 +2,7 @@
  * @Author: xuxianghong12
  * @Date: 2026-04-14 12:23:20
  * @LastEditors: xuxianghong12
- * @LastEditTime: 2026-04-16 20:33:41
+ * @LastEditTime: 2026-04-22 08:02:17
  * @SPDX-License-Identifier: Apache-2.0
 -->
 # Demo: load tokenizer SQLite plugin from C and C++
@@ -27,7 +27,7 @@ make -C sqlite-llm llm_ops.so llm_tokenizer.so
 make -C demo all
 ```
 
-## 3. Tokenize / detokenize directly in SQLite
+## 3. Tokenize / detokenize directly in SQLite (WIP)
 
 The tokenizer plugin exports these SQL functions:
 
@@ -48,18 +48,10 @@ SELECT llm_token_at(llm_tokenize('hello', '/path/to/exported/model/tokenizer.jso
 
 ## 4. C / C++ token-in token-out usage
 
-`c_qwen_graph_tokens` and `cpp_qwen_graph_tokens` keep the original
-token-ID input/output flow:
-
-1. parse the input CSV token IDs
-2. run inference with `llmsql_native_generate_tokens(...)`
-3. print generated token IDs as CSV
-
-Run the C demo:
+Run the C demo with the verified hello token id (14990) and max_tokens=5:
 
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
-LLM_TOKENIZER_EXTENSION_PATH=./sqlite-llm/llm_tokenizer.so \
 ./demo/c_qwen_graph_tokens /path/to/exported/model 14990 5 model.db
 ```
 
@@ -67,11 +59,10 @@ Run the C++ demo:
 
 ```bash
 LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
-LLM_TOKENIZER_EXTENSION_PATH=./sqlite-llm/llm_tokenizer.so \
 ./demo/cpp_qwen_graph_tokens /path/to/exported/model 14990 5 model.db
 ```
 
-## 5. C / C++ string prompt demo
+## 5. C / C++ string prompt demo (WIP)
 
 `c_qwen_graph_string` and `cpp_qwen_graph_string` are the string-prompt
 variants and use the same SQLite tokenizer plugin internally. They print
