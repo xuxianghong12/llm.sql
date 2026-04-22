@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "native_graph_runtime.h"
 
 #include <sqlite3.h>
@@ -9,7 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
 #define ND_MAGIC 0x80000000u
 
@@ -108,6 +113,12 @@ typedef struct {
     char error[512];
 } JsonParser;
 
+typedef struct {
+    llmsql_profile *profile;
+} ExecProfileContext;
+
+static void set_error(char *error_buf, size_t error_buf_size, const char *fmt, ...);
+
 static char *join_path(const char *dir, const char *file) {
     size_t len = strlen(dir) + strlen(file) + 2;
     char *path = (char *)malloc(len);
@@ -116,6 +127,214 @@ static char *join_path(const char *dir, const char *file) {
     }
     snprintf(path, len, "%s/%s", dir, file);
     return path;
+}
+
+static double monotonic_time_ms(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+        return 0.0;
+    }
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1000000.0;
+}
+
+static double current_rss_mb(void) {
+#if defined(__linux__)
+    FILE *fp = fopen("/proc/self/statm", "r");
+    unsigned long total_pages = 0;
+    unsigned long resident_pages = 0;
+    long page_size;
+    double rss_mb = 0.0;
+    if (fp == NULL) {
+        return 0.0;
+    }
+    if (fscanf(fp, "%lu %lu", &total_pages, &resident_pages) == 2) {
+        page_size = sysconf(_SC_PAGESIZE);
+        if (page_size > 0) {
+            rss_mb = ((double)resident_pages * (double)page_size) / (1024.0 * 1024.0);
+        }
+    }
+    fclose(fp);
+    return rss_mb;
+#else
+    return 0.0;
+#endif
+}
+
+static double peak_rss_mb(void) {
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        return 0.0;
+    }
+#if defined(__APPLE__)
+    return (double)usage.ru_maxrss / (1024.0 * 1024.0);
+#else
+    return (double)usage.ru_maxrss / 1024.0;
+#endif
+}
+
+static void update_peak_rss(llmsql_profile *profile) {
+    double peak_rss;
+    if (profile == NULL) {
+        return;
+    }
+    peak_rss = peak_rss_mb();
+    if (peak_rss > profile->peak_rss_mb) {
+        profile->peak_rss_mb = peak_rss;
+    }
+}
+
+static void record_rss_snapshot(llmsql_profile *profile, double *slot) {
+    if (profile == NULL) {
+        return;
+    }
+    if (slot != NULL) {
+        *slot = current_rss_mb();
+    }
+    update_peak_rss(profile);
+}
+
+static int compare_profile_op_timings_desc(const void *lhs, const void *rhs) {
+    const llmsql_profile_op_timing *a = (const llmsql_profile_op_timing *)lhs;
+    const llmsql_profile_op_timing *b = (const llmsql_profile_op_timing *)rhs;
+    if (a->total_us < b->total_us) {
+        return 1;
+    }
+    if (a->total_us > b->total_us) {
+        return -1;
+    }
+    return strcmp(a->name, b->name);
+}
+
+static void sort_profile_op_timings(llmsql_profile *profile) {
+    if (profile == NULL || profile->op_timing_count <= 1 || profile->op_timings == NULL) {
+        return;
+    }
+    qsort(
+        profile->op_timings,
+        (size_t)profile->op_timing_count,
+        sizeof(profile->op_timings[0]),
+        compare_profile_op_timings_desc
+    );
+}
+
+static const char *profile_instr_name(const NativeInstr *instr) {
+    if (instr == NULL) {
+        return "sql";
+    }
+    if (instr->target != NULL && instr->target[0] != '\0') {
+        return instr->target;
+    }
+    if (instr->name != NULL && instr->name[0] != '\0') {
+        return instr->name;
+    }
+    return "sql";
+}
+
+static int profile_add_op_timing(
+    llmsql_profile *profile,
+    const NativeInstr *instr,
+    double elapsed_us,
+    char *error_buf,
+    size_t error_buf_size
+) {
+    const char *name;
+    llmsql_profile_op_timing *next_entries;
+    int i;
+    if (profile == NULL) {
+        return 1;
+    }
+    name = profile_instr_name(instr);
+    for (i = 0; i < profile->op_timing_count; ++i) {
+        if (strcmp(profile->op_timings[i].name, name) == 0) {
+            profile->op_timings[i].total_us += elapsed_us;
+            return 1;
+        }
+    }
+    next_entries = (llmsql_profile_op_timing *)realloc(
+        profile->op_timings,
+        (size_t)(profile->op_timing_count + 1) * sizeof(*profile->op_timings)
+    );
+    if (next_entries == NULL) {
+        set_error(error_buf, error_buf_size, "out of memory recording op timings");
+        return 0;
+    }
+    profile->op_timings = next_entries;
+    memset(&profile->op_timings[profile->op_timing_count], 0, sizeof(profile->op_timings[profile->op_timing_count]));
+    snprintf(
+        profile->op_timings[profile->op_timing_count].name,
+        sizeof(profile->op_timings[profile->op_timing_count].name),
+        "%s",
+        name
+    );
+    profile->op_timings[profile->op_timing_count].total_us = elapsed_us;
+    profile->op_timing_count += 1;
+    return 1;
+}
+
+static void build_memory_summary(llmsql_profile *profile) {
+    if (profile == NULL) {
+        return;
+    }
+    snprintf(
+        profile->memory_summary,
+        sizeof(profile->memory_summary),
+        "start RSS: %.1f MB\nafter prefill RSS: %.1f MB\nend RSS: %.1f MB\npeak RSS: %.1f MB",
+        profile->start_rss_mb,
+        profile->after_prefill_rss_mb,
+        profile->end_rss_mb,
+        profile->peak_rss_mb
+    );
+}
+
+void llmsql_native_free_profile(llmsql_profile *profile) {
+    if (profile == NULL) {
+        return;
+    }
+    free(profile->decode_step_ms);
+    free(profile->op_timings);
+    memset(profile, 0, sizeof(*profile));
+}
+
+void llmsql_native_print_profile(FILE *stream, const llmsql_profile *profile) {
+    FILE *out = stream != NULL ? stream : stdout;
+    int i;
+    int top_n;
+    if (profile == NULL) {
+        return;
+    }
+    fprintf(out, "\n============================================================\n");
+    fprintf(out, "Profile\n");
+    fprintf(out, "============================================================\n");
+    fprintf(out, "Mode: %s\n", profile->mode[0] != '\0' ? profile->mode : "native_graph");
+    fprintf(out, "Database: %s\n", profile->db_filename[0] != '\0' ? profile->db_filename : "model.db");
+    fprintf(out, "Prompt tokens: %d\n", profile->prompt_tokens);
+    fprintf(out, "Generated tokens: %d\n", profile->generated_tokens);
+    fprintf(out, "Prefill latency: %.2f ms\n", profile->prefill_ms);
+    fprintf(out, "Decode steps: %d\n", profile->decode_steps);
+    fprintf(out, "Decode total: %.2f ms\n", profile->decode_total_ms);
+    fprintf(out, "Decode avg/step: %.2f ms\n", profile->decode_avg_ms);
+    fprintf(out, "Throughput: %.2f tokens/sec\n", profile->tokens_per_sec);
+    fprintf(out, "Peak RSS: %.1f MB\n", profile->peak_rss_mb);
+    // NOTE: the per-step latency details can be very verbose, so we omit them by default. You can enable them by uncommenting the relevant code in llmsql_native_print_profile and recompile if you want to see them.
+    // if (profile->decode_step_count > 0 && profile->decode_step_ms != NULL) {
+    //     fprintf(out, "Decode step latency (ms):\n");
+    //     for (i = 0; i < profile->decode_step_count; ++i) {
+    //         fprintf(out, "  step %-3d %.2f\n", i + 1, profile->decode_step_ms[i]);
+    //     }
+    // }
+    if (profile->sql_call_count > 0) {
+        fprintf(out, "SQL call count: %d\n", profile->sql_call_count);
+    }
+    if (profile->op_timing_count > 0 && profile->op_timings != NULL) {
+        top_n = profile->op_timing_count < 5 ? profile->op_timing_count : 5;
+        fprintf(out, "Top op timings (us):\n");
+        for (i = 0; i < top_n; ++i) {
+            fprintf(out, "  %-30s %10.2f\n", profile->op_timings[i].name, profile->op_timings[i].total_us);
+        }
+    }
+    if (profile->memory_summary[0] != '\0') {
+        fprintf(out, "\nMemory summary:\n%s\n", profile->memory_summary);
+    }
 }
 
 static char *read_text_file(const char *path) {
@@ -1086,6 +1305,7 @@ static int execute_graph(
     const Blob *past_kv,
     int past_kv_count,
     GraphOutputs *outputs,
+    ExecProfileContext *profile_ctx,
     char *error_buf,
     size_t error_buf_size
 ) {
@@ -1134,6 +1354,10 @@ static int execute_graph(
         if (instr->kind == INSTR_SQL) {
             sqlite3_stmt *stmt = instr->stmt;
             int bind_index;
+            double step_start_ms = 0.0;
+            if (profile_ctx != NULL && profile_ctx->profile != NULL) {
+                step_start_ms = monotonic_time_ms();
+            }
             if (sqlite3_reset(stmt) != SQLITE_OK || sqlite3_clear_bindings(stmt) != SQLITE_OK) {
                 set_error(error_buf, error_buf_size, "failed to reset statement for %s", instr->name != NULL ? instr->name : "sql");
                 rc = 0;
@@ -1157,6 +1381,18 @@ static int execute_graph(
             if (!extract_value(stmt, 0, &env[instr->slot], error_buf, error_buf_size)) {
                 rc = 0;
                 break;
+            }
+            if (profile_ctx != NULL && profile_ctx->profile != NULL) {
+                profile_ctx->profile->sql_call_count += 1;
+                if (!profile_add_op_timing(
+                        profile_ctx->profile,
+                        instr,
+                        (monotonic_time_ms() - step_start_ms) * 1000.0,
+                        error_buf,
+                        error_buf_size)) {
+                    rc = 0;
+                    break;
+                }
             }
             continue;
         }
@@ -1347,7 +1583,7 @@ static const char *resolve_default_db_name(const char *model_dir, const char *ex
     return selected;
 }
 
-int llmsql_native_generate_tokens(
+int llmsql_native_generate_tokens_profiled(
     const char *model_dir,
     const char *db_filename,
     const char *prefill_graph_path,
@@ -1358,6 +1594,7 @@ int llmsql_native_generate_tokens(
     int prompt_len,
     int max_tokens,
     llmsql_generation *out,
+    llmsql_profile *profile,
     char *error_buf,
     size_t error_buf_size
 ) {
@@ -1375,6 +1612,7 @@ int llmsql_native_generate_tokens(
     int eos_token_id = 0;
     int *tokens = NULL;
     int token_count = 0;
+    int decode_steps = 0;
     int rc = 0;
     memset(&prefill_graph, 0, sizeof(prefill_graph));
     memset(&decode_graph, 0, sizeof(decode_graph));
@@ -1387,6 +1625,22 @@ int llmsql_native_generate_tokens(
     if (max_tokens <= 0) {
         set_error(error_buf, error_buf_size, "max_tokens must be positive");
         return 0;
+    }
+
+    if (profile != NULL) {
+        llmsql_native_free_profile(profile);
+        snprintf(profile->mode, sizeof(profile->mode), "%s", "native_graph");
+        snprintf(profile->db_filename, sizeof(profile->db_filename), "%s", resolved_db != NULL ? resolved_db : "");
+        profile->prompt_tokens = prompt_len;
+        if (max_tokens > 1) {
+            profile->decode_step_ms = (double *)calloc((size_t)(max_tokens - 1), sizeof(*profile->decode_step_ms));
+            if (profile->decode_step_ms == NULL) {
+                llmsql_native_free_profile(profile);
+                set_error(error_buf, error_buf_size, "out of memory allocating decode profile buffer");
+                return 0;
+            }
+        }
+        record_rss_snapshot(profile, &profile->start_rss_mb);
     }
 
     db_path = join_path(model_dir, resolved_db);
@@ -1434,9 +1688,17 @@ int llmsql_native_generate_tokens(
     {
         GraphOutputs prefill_outputs;
         Blob logits = {NULL, 0};
+        double prefill_start_ms = 0.0;
         memset(&prefill_outputs, 0, sizeof(prefill_outputs));
-        if (!execute_graph(db, &prefill_graph, &prompt_blob, NULL, 0, &prefill_outputs, error_buf, error_buf_size)) {
+        if (profile != NULL) {
+            prefill_start_ms = monotonic_time_ms();
+        }
+        if (!execute_graph(db, &prefill_graph, &prompt_blob, NULL, 0, &prefill_outputs, NULL, error_buf, error_buf_size)) {
             goto cleanup;
+        }
+        if (profile != NULL) {
+            profile->prefill_ms = monotonic_time_ms() - prefill_start_ms;
+            record_rss_snapshot(profile, &profile->after_prefill_rss_mb);
         }
         if (prefill_outputs.count < 1 || prefill_outputs.values[0].type != VALUE_BLOB) {
             graph_outputs_free(&prefill_outputs);
@@ -1476,12 +1738,16 @@ int llmsql_native_generate_tokens(
         Blob logits = {NULL, 0};
         Blob *next_kv = NULL;
         Blob step_blob = make_input_blob(&tokens[token_count - 1], 1);
+        double decode_start_ms = 0.0;
         memset(&decode_outputs, 0, sizeof(decode_outputs));
         if (step_blob.data == NULL) {
             set_error(error_buf, error_buf_size, "out of memory building decode input blob");
             goto cleanup;
         }
-        if (!execute_graph(db, &decode_graph, &step_blob, kv_cache, kv_count, &decode_outputs, error_buf, error_buf_size)) {
+        if (profile != NULL) {
+            decode_start_ms = monotonic_time_ms();
+        }
+        if (!execute_graph(db, &decode_graph, &step_blob, kv_cache, kv_count, &decode_outputs, NULL, error_buf, error_buf_size)) {
             free(step_blob.data);
             goto cleanup;
         }
@@ -1517,6 +1783,13 @@ int llmsql_native_generate_tokens(
         kv_count = decode_graph.instrs[decode_graph.instr_count - 1].output_count - 1;
         tokens[token_count] = argmax_last_row(&logits, vocab_size);
         free(logits.data);
+        if (profile != NULL) {
+            double decode_ms = monotonic_time_ms() - decode_start_ms;
+            profile->decode_step_ms[decode_steps] = decode_ms;
+            profile->decode_total_ms += decode_ms;
+            update_peak_rss(profile);
+        }
+        decode_steps += 1;
         if (tokens[token_count] == eos_token_id) {
             token_count += 1;
             break;
@@ -1527,9 +1800,56 @@ int llmsql_native_generate_tokens(
     out->token_ids = tokens;
     out->token_count = token_count;
     tokens = NULL;
+    if (profile != NULL) {
+        profile->generated_tokens = token_count;
+        profile->decode_steps = decode_steps;
+        profile->decode_step_count = decode_steps;
+        profile->decode_avg_ms = decode_steps > 0 ? profile->decode_total_ms / (double)decode_steps : 0.0;
+        profile->tokens_per_sec = profile->decode_total_ms > 0.0 ? ((double)decode_steps * 1000.0) / profile->decode_total_ms : 0.0;
+        record_rss_snapshot(profile, &profile->end_rss_mb);
+        if (decode_steps > 0 && kv_cache != NULL) {
+            Blob replay_blob = make_input_blob(&out->token_ids[out->token_count - 1], 1);
+            GraphOutputs replay_outputs;
+            ExecProfileContext replay_ctx;
+            char replay_error[512] = {0};
+            memset(&replay_outputs, 0, sizeof(replay_outputs));
+            memset(&replay_ctx, 0, sizeof(replay_ctx));
+            replay_ctx.profile = profile;
+            free(profile->op_timings);
+            profile->op_timings = NULL;
+            profile->op_timing_count = 0;
+            profile->sql_call_count = 0;
+            if (replay_blob.data != NULL) {
+                if (execute_graph(
+                        db,
+                        &decode_graph,
+                        &replay_blob,
+                        kv_cache,
+                        kv_count,
+                        &replay_outputs,
+                        &replay_ctx,
+                        replay_error,
+                        sizeof(replay_error))) {
+                    graph_outputs_free(&replay_outputs);
+                    sort_profile_op_timings(profile);
+                } else {
+                    graph_outputs_free(&replay_outputs);
+                    free(profile->op_timings);
+                    profile->op_timings = NULL;
+                    profile->op_timing_count = 0;
+                    profile->sql_call_count = 0;
+                }
+                free(replay_blob.data);
+            }
+        }
+        build_memory_summary(profile);
+    }
     rc = 1;
 
 cleanup:
+    if (!rc && profile != NULL) {
+        llmsql_native_free_profile(profile);
+    }
     free(tokens);
     free_blob_array(kv_cache, kv_count);
     free(prompt_blob.data);
@@ -1542,6 +1862,37 @@ cleanup:
     free(prefill_path);
     free(decode_path);
     return rc;
+}
+
+int llmsql_native_generate_tokens(
+    const char *model_dir,
+    const char *db_filename,
+    const char *prefill_graph_path,
+    const char *decode_graph_path,
+    const char *extension_path,
+    int num_threads,
+    const int *prompt_ids,
+    int prompt_len,
+    int max_tokens,
+    llmsql_generation *out,
+    char *error_buf,
+    size_t error_buf_size
+) {
+    return llmsql_native_generate_tokens_profiled(
+        model_dir,
+        db_filename,
+        prefill_graph_path,
+        decode_graph_path,
+        extension_path,
+        num_threads,
+        prompt_ids,
+        prompt_len,
+        max_tokens,
+        out,
+        NULL,
+        error_buf,
+        error_buf_size
+    );
 }
 
 void llmsql_native_free_generation(llmsql_generation *generation) {
