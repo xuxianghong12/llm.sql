@@ -2,7 +2,7 @@
  * @Author: xuxianghong12
  * @Date: 2026-04-14 12:23:20
  * @LastEditors: xuxianghong12
- * @LastEditTime: 2026-04-22 08:02:17
+ * @LastEditTime: 2026-04-22 08:07:24
  * @SPDX-License-Identifier: Apache-2.0
 -->
 # Demo: load tokenizer SQLite plugin from C and C++
@@ -62,6 +62,13 @@ LLM_SQL_EXTENSION_PATH=./sqlite-llm/llm_ops.so \
 ./demo/cpp_qwen_graph_tokens /path/to/exported/model 14990 5 model.db
 ```
 
+
+<p align="center">
+  <img src="figures/c-cpp-demo.png" alt="C and C++ Demo" width="100%">
+  <br>
+  <small>C/C++ Demo: Running Qwen-2.5-0.5B-Instruct on llm.sql</small>
+</p>
+
 ## 5. C / C++ string prompt demo (WIP)
 
 `c_qwen_graph_string` and `cpp_qwen_graph_string` are the string-prompt
@@ -81,11 +88,6 @@ LLM_TOKENIZER_EXTENSION_PATH=./sqlite-llm/llm_tokenizer.so \
 If `LLM_TOKENIZER_EXTENSION_PATH` is not set, the demos try to locate
 `llm_tokenizer.so` next to `llm_ops.so`.
 
-<p align="center">
-  <img src="figures/c-cpp-demo.png" alt="C and C++ Demo" width="100%">
-  <br>
-  <small>C/C++ Demo: running Qwen on llm.sql with SQLite tokenizer plugin</small>
-</p>
 
 ## 6. Run tokenizer tests
 
