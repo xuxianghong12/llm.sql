@@ -319,8 +319,6 @@ The roadmap of the inference engine is shown in the figure. The inference engine
 The roadmap of storage engine is shown in the figure. It focuses on leveraging SQLite's paging system to redefine how LLM weights and states are persisted. Weights-to-SQLite transformation pipeline: (1) Model Decomposition. The unified model parameter file of LLM is first unpacked into individual layer parameters. (2) Schema Mapping. Each layer's parameters are mapped as SQLite BLOB tables. (3) Physical Persistence. These tables are then serialized and persisted to Disk/Flash to storage, leveraging SQLite for management.
 
 - ✅ Weights-in-SQLite. Store LLM parameters directly in SQLite BLOBs.
-- 📅 Weight Export Optimization. To reduce the memory cost in exporting model weights to BLOB.
-- 📅 Storage Optimization. Currently, the storage consumption of INT8 quantized BLOBs is even larger than FP32. It is required to optimize physical storage to ensure quantized models achieve their expected compression gains.
 - 📅 All-in-One Distribution. Transitioning toward a fully self-contained, single-file architecture for seamless deployment.
 - 📅 Fault-Tolerant Inference. Periodically persists the KV cache into the database during inference to prevent data loss from unexpected interruptions and enable seamless recovery.
 - 📅 Task-specific KV cache. Persistent KV cache stored in tables, where the prefilling stage of preset tasks is pre-computed and stored.
