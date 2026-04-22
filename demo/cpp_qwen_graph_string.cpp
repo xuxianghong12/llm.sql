@@ -228,10 +228,21 @@ void printTokenIds(
 /* ── main ──────────────────────────────────────────────────── */
 
 int main(int argc, char **argv) {
-    if (argc < 4 || argc > 5) {
+    std::vector<const char *> positionalArgs;
+    bool profileEnabled = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--profile") {
+            profileEnabled = true;
+            continue;
+        }
+        positionalArgs.push_back(argv[i]);
+    }
+
+    if (positionalArgs.size() < 3 || positionalArgs.size() > 4) {
         std::cerr
             << "usage: " << argv[0]
-            << " <model_dir> <prompt> <max_tokens>"
+            << " [--profile] <model_dir> <prompt> <max_tokens>"
                " [db_filename]\n";
         return 1;
     }
@@ -243,7 +254,7 @@ int main(int argc, char **argv) {
     const char *threadEnv =
         std::getenv("LLM_SQL_THREADS");
     const char *dbFilename =
-        argc >= 5 ? argv[4] : nullptr;
+        positionalArgs.size() >= 4 ? positionalArgs[3] : nullptr;
     int numThreads = 4;
 
     if (threadEnv != nullptr && threadEnv[0] != '\0') {
@@ -271,7 +282,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::string modelDir = argv[1];
+    std::string modelDir = positionalArgs[0];
     std::string resolvedDb =
         resolveDb(modelDir, dbFilename);
     std::string dbPath =
@@ -293,21 +304,23 @@ int main(int argc, char **argv) {
     /* Encode prompt */
     std::vector<int> promptIds;
     if (!sqlEncode(tokDb.get(),
-                   argv[2],
+                   positionalArgs[1],
                    jsonPath,
                    promptIds) ||
         promptIds.empty()) {
         std::cerr << "failed to encode prompt: "
-                  << argv[2] << "\n";
+                  << positionalArgs[1] << "\n";
         return 1;
     }
 
     /* Run inference */
     GenerationGuard genGuard;
+    llmsql_profile profile{};
+    llmsql_profile *profilePtr = profileEnabled ? &profile : nullptr;
     char error[512] = {0};
 
-    if (!llmsql_native_generate_tokens(
-            argv[1],
+    if (!llmsql_native_generate_tokens_profiled(
+            positionalArgs[0],
             dbFilename,
             nullptr,
             nullptr,
@@ -315,8 +328,9 @@ int main(int argc, char **argv) {
             numThreads,
             promptIds.data(),
             static_cast<int>(promptIds.size()),
-            std::atoi(argv[3]),
+            std::atoi(positionalArgs[2]),
             &genGuard.gen,
+            profilePtr,
             error,
             sizeof(error))) {
         std::cerr
@@ -324,6 +338,7 @@ int main(int argc, char **argv) {
                     ? error
                     : "native graph runtime failed")
             << "\n";
+        llmsql_native_free_profile(&profile);
         return 1;
     }
 
@@ -336,6 +351,11 @@ int main(int argc, char **argv) {
         genGuard.gen.token_ids,
         genGuard.gen.token_count);
     std::cout << "decoded_text: " << output << "\n";
+
+    if (profileEnabled) {
+        llmsql_native_print_profile(stdout, &profile);
+        llmsql_native_free_profile(&profile);
+    }
 
     return 0;
 }

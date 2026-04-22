@@ -258,6 +258,7 @@ int main(int argc, char **argv) {
     const char *tok_ext_env =
         getenv("LLM_TOKENIZER_EXTENSION_PATH");
     const char *thread_env = getenv("LLM_SQL_THREADS");
+    const char *positionals[4] = {0};
     const char *db_filename;
     const char *resolved_db;
     char *db_path = NULL;
@@ -265,23 +266,41 @@ int main(int argc, char **argv) {
     char *tok_ext_path = NULL;
     sqlite3 *tok_db = NULL;
     llmsql_generation generation;
+    llmsql_profile profile;
+    llmsql_profile *profile_ptr = NULL;
     char error[512] = {0};
     int *prompt_ids = NULL;
     int prompt_len = 0;
     int max_tokens;
     int num_threads = 4;
+    int positional_count = 0;
+    int profile_enabled = 0;
 
-    if (argc < 4 || argc > 5) {
+    memset(&generation, 0, sizeof(generation));
+    memset(&profile, 0, sizeof(profile));
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--profile") == 0) {
+            profile_enabled = 1;
+            continue;
+        }
+        if (positional_count >= 4) {
+            positional_count = 5;
+            break;
+        }
+        positionals[positional_count++] = argv[i];
+    }
+
+    if (positional_count < 3 || positional_count > 4) {
         fprintf(
             stderr,
-            "usage: %s <model_dir> <prompt> <max_tokens>"
+            "usage: %s [--profile] <model_dir> <prompt> <max_tokens>"
             " [db_filename]\n",
             argv[0]);
         return 1;
     }
 
-    db_filename = argc >= 5 ? argv[4] : NULL;
-    max_tokens = atoi(argv[3]);
+    db_filename = positional_count >= 4 ? positionals[3] : NULL;
+    max_tokens = atoi(positionals[2]);
     if (thread_env != NULL && thread_env[0] != '\0') {
         num_threads = atoi(thread_env);
     }
@@ -323,9 +342,9 @@ int main(int argc, char **argv) {
     }
 
     /* Resolve db and build paths */
-    resolved_db = resolve_db(argv[1], db_filename);
-    db_path = join_path(argv[1], resolved_db);
-    json_path = join_path(argv[1], "tokenizer.json");
+    resolved_db = resolve_db(positionals[0], db_filename);
+    db_path = join_path(positionals[0], resolved_db);
+    json_path = join_path(positionals[0], "tokenizer.json");
     if (db_path == NULL || json_path == NULL) {
         fprintf(stderr, "out of memory\n");
         free(db_path);
@@ -349,14 +368,14 @@ int main(int argc, char **argv) {
 
     /* Encode prompt */
     if (!sql_encode(tok_db,
-                    argv[2],
+                    positionals[1],
                     json_path,
                     &prompt_ids,
                     &prompt_len) ||
         prompt_len <= 0) {
         fprintf(stderr,
                 "failed to encode prompt: %s\n",
-                argv[2]);
+                positionals[1]);
         sqlite3_close(tok_db);
         free(db_path);
         free(json_path);
@@ -365,8 +384,11 @@ int main(int argc, char **argv) {
     }
 
     /* Run inference */
-    if (!llmsql_native_generate_tokens(
-            argv[1],
+    if (profile_enabled) {
+        profile_ptr = &profile;
+    }
+    if (!llmsql_native_generate_tokens_profiled(
+            positionals[0],
             db_filename,
             NULL,
             NULL,
@@ -376,6 +398,7 @@ int main(int argc, char **argv) {
             prompt_len,
             max_tokens,
             &generation,
+            profile_ptr,
             error,
             sizeof(error))) {
         fprintf(
@@ -384,6 +407,7 @@ int main(int argc, char **argv) {
             error[0] != '\0'
                 ? error
                 : "native graph runtime failed");
+        llmsql_native_free_profile(&profile);
         free(prompt_ids);
         sqlite3_close(tok_db);
         free(db_path);
@@ -407,6 +431,11 @@ int main(int argc, char **argv) {
         } else {
             printf("decoded_text: \n");
         }
+    }
+
+    if (profile_enabled) {
+        llmsql_native_print_profile(stdout, &profile);
+        llmsql_native_free_profile(&profile);
     }
 
     llmsql_native_free_generation(&generation);
