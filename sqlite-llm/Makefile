@@ -27,6 +27,7 @@ CFLAGS    := -O3 -march=native \
              -fPIC -fvisibility=hidden \
              -DLLM_NUM_THREADS=$(LLM_NUM_THREADS) \
 			 -I. \
+			 -Ix86 \
              -I/usr/include \
              -I/usr/include/x86_64-linux-gnu
 
@@ -36,7 +37,26 @@ SQLITE_LIB := $(shell pkg-config --libs   sqlite3 2>/dev/null || echo "-lsqlite3
 
 # ── Shared-library (extension) ────────────────────────────────────────────
 SONAME    := llm_ops.so
-SRCS      := llm_ops_x86.c
+SRCS      := x86/llm_ops_x86.c \
+	           x86/llm_ops_x86_elementwise.c \
+	           x86/llm_ops_x86_reduce.c \
+	           x86/llm_ops_x86_norm.c \
+	           x86/llm_ops_x86_shape.c \
+	           x86/llm_ops_x86_common.c \
+	           x86/llm_ops_x86_blob.c \
+	           x86/llm_ops_x86_nd_layout.c \
+	           x86/llm_ops_x86_nd_stats.c \
+	           x86/llm_ops_x86_nd_algebra.c \
+	           x86/llm_ops_x86_nd_pointwise.c \
+	           x86/llm_ops_x86_nd_reduce.c \
+	           x86/llm_ops_x86_nd_utility.c \
+	           x86/llm_ops_x86_nd_sequence.c \
+	           x86/llm_ops_x86_nd_model.c \
+	           x86/llm_ops_x86_int8.c \
+	           x86/llm_ops_x86_matrix.c \
+	           x86/llm_ops_x86_transformer.c \
+	           x86/llm_ops_x86_runtime.c \
+	           x86/llm_ops_x86_lookup.c
 
 # ── Custom LLM page cache library ────────────────────────────────────────
 PCACHE_SO := llm_pcache.so
@@ -54,7 +74,7 @@ TOKENIZER_SRC := llm_tokenizer.c
 
 all: $(SONAME) $(PCACHE_SO) $(PARAM_MGR_SO) $(TOKENIZER_SO)
 
-$(SONAME): $(SRCS) llm_ops.h
+$(SONAME): $(SRCS) x86/llm_ops.h
 	$(CC) $(CFLAGS) $(SQLITE_INC) \
 	    -shared -o $@ $(SRCS) \
 	    $(SQLITE_LIB) \
@@ -110,8 +130,8 @@ test-tokenizer: $(TEST_TOKENIZER_BIN)
 # ── Test binary ───────────────────────────────────────────────────────────
 TEST_BIN  := test_llm_ops_x86
 
-$(TEST_BIN): test_llm_ops_x86.c $(SONAME)
-	$(CC) -O2 -o $@ test_llm_ops_x86.c \
+$(TEST_BIN): x86/test_llm_ops_x86.c $(SONAME)
+	$(CC) -O2 -Ix86 -o $@ x86/test_llm_ops_x86.c \
 	    $(SQLITE_INC) \
 	    $(SQLITE_LIB) \
 	    -lm
@@ -126,5 +146,5 @@ clean:
 # Print value of LLM_HAVE_AVX2 as seen by the preprocessor
 print_llm_have_avx2:
 	@echo -n "#sym:LLM_HAVE_AVX2="
-	@val=`$(CC) $(CFLAGS) -E -dM llm_ops.h | awk '/^#define LLM_HAVE_AVX2 /{print $$3; exit}'`; \
+	@val=`$(CC) $(CFLAGS) -E -dM x86/llm_ops.h | awk '/^#define LLM_HAVE_AVX2 /{print $$3; exit}'`; \
 	if [ -z "$$val" ]; then echo "(not defined)"; else echo "$$val"; fi
