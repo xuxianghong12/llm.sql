@@ -15,15 +15,34 @@
 SQLITE_EXTENSION_INIT3
 
 void k_add_simd(const float *a, const float *b, float *c, int n) {
+#if LLM_HAVE_NEON
+    int i = 0;
+    for (; i <= n - 4; i += 4)
+        vst1q_f32(c + i, vaddq_f32(vld1q_f32(a + i), vld1q_f32(b + i)));
+    for (; i < n; i++)
+        c[i] = a[i] + b[i];
+#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
+#endif
 }
 
 float k_dot_simd(const float *a, const float *b, int n) {
+#if LLM_HAVE_NEON
+    float32x4_t acc = vdupq_n_f32(0.0f);
+    int i = 0;
+    for (; i <= n - 4; i += 4)
+        acc = vmlaq_f32(acc, vld1q_f32(a + i), vld1q_f32(b + i));
+    float sum = llm_hsumq_f32(acc);
+    for (; i < n; i++)
+        sum += a[i] * b[i];
+    return sum;
+#else
     float sum = 0.0f;
     for (int i = 0; i < n; i++)
         sum += a[i] * b[i];
     return sum;
+#endif
 }
 
 void *alloc_vec_blob(int n, const float *data, int *sz_out) {

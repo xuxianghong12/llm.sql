@@ -18,13 +18,37 @@
 SQLITE_EXTENSION_INIT3
 
 static float k_reduce_sum(const float *a, int n) {
+#if LLM_HAVE_NEON
+    float32x4_t acc = vdupq_n_f32(0.0f);
+    int i = 0;
+    for (; i <= n - 4; i += 4)
+        acc = vaddq_f32(acc, vld1q_f32(a + i));
+    float s = llm_hsumq_f32(acc);
+    for (; i < n; i++)
+        s += a[i];
+    return s;
+#else
     float s = 0.0f;
     for (int i = 0; i < n; i++)
         s += a[i];
     return s;
+#endif
 }
 
 static float k_reduce_max(const float *a, int n) {
+#if LLM_HAVE_NEON
+    if (n >= 4) {
+        float32x4_t vmx = vld1q_f32(a);
+        int i = 4;
+        for (; i <= n - 4; i += 4)
+            vmx = vmaxq_f32(vmx, vld1q_f32(a + i));
+        float mx = llm_hmaxq_f32(vmx);
+        for (; i < n; i++)
+            if (a[i] > mx)
+                mx = a[i];
+        return mx;
+    }
+#endif
     float mx = a[0];
     for (int i = 1; i < n; i++)
         if (a[i] > mx)
@@ -33,6 +57,19 @@ static float k_reduce_max(const float *a, int n) {
 }
 
 static float k_reduce_min(const float *a, int n) {
+#if LLM_HAVE_NEON
+    if (n >= 4) {
+        float32x4_t vmn = vld1q_f32(a);
+        int i = 4;
+        for (; i <= n - 4; i += 4)
+            vmn = vminq_f32(vmn, vld1q_f32(a + i));
+        float mn = llm_hminq_f32(vmn);
+        for (; i < n; i++)
+            if (a[i] < mn)
+                mn = a[i];
+        return mn;
+    }
+#endif
     float mn = a[0];
     for (int i = 1; i < n; i++)
         if (a[i] < mn)

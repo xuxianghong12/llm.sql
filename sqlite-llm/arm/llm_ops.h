@@ -53,6 +53,68 @@
 #define LLM_INLINE static inline
 #endif
 
+#if LLM_HAVE_NEON
+LLM_INLINE float llm_hsumq_f32(float32x4_t v) {
+#if defined(__aarch64__)
+    return vaddvq_f32(v);
+#else
+    float32x2_t pair = vadd_f32(vget_low_f32(v), vget_high_f32(v));
+    pair = vpadd_f32(pair, pair);
+    return vget_lane_f32(pair, 0);
+#endif
+}
+
+LLM_INLINE float llm_hmaxq_f32(float32x4_t v) {
+#if defined(__aarch64__)
+    return vmaxvq_f32(v);
+#else
+    float32x2_t pair = vpmax_f32(vget_low_f32(v), vget_high_f32(v));
+    pair = vpmax_f32(pair, pair);
+    return vget_lane_f32(pair, 0);
+#endif
+}
+
+LLM_INLINE float llm_hminq_f32(float32x4_t v) {
+#if defined(__aarch64__)
+    return vminvq_f32(v);
+#else
+    float32x2_t pair = vpmin_f32(vget_low_f32(v), vget_high_f32(v));
+    pair = vpmin_f32(pair, pair);
+    return vget_lane_f32(pair, 0);
+#endif
+}
+
+LLM_INLINE void llm_store_dequantize_i8x8(float *out,
+                                          const int8_t *src,
+                                          float scale) {
+    int8x8_t vi8 = vld1_s8(src);
+    int16x8_t vi16 = vmovl_s8(vi8);
+    int32x4_t lo = vmovl_s16(vget_low_s16(vi16));
+    int32x4_t hi = vmovl_s16(vget_high_s16(vi16));
+    float32x4_t vscale = vdupq_n_f32(scale);
+    vst1q_f32(out, vmulq_f32(vcvtq_f32_s32(lo), vscale));
+    vst1q_f32(out + 4, vmulq_f32(vcvtq_f32_s32(hi), vscale));
+}
+
+LLM_INLINE float llm_dot_i8f32_neon(const float *x, const int8_t *w, int32_t n) {
+    float32x4_t acc0 = vdupq_n_f32(0.0f);
+    float32x4_t acc1 = vdupq_n_f32(0.0f);
+    int32_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        int8x8_t vi8 = vld1_s8(w + i);
+        int16x8_t vi16 = vmovl_s8(vi8);
+        int32x4_t lo = vmovl_s16(vget_low_s16(vi16));
+        int32x4_t hi = vmovl_s16(vget_high_s16(vi16));
+        acc0 = vmlaq_f32(acc0, vld1q_f32(x + i), vcvtq_f32_s32(lo));
+        acc1 = vmlaq_f32(acc1, vld1q_f32(x + i + 4), vcvtq_f32_s32(hi));
+    }
+    float acc = llm_hsumq_f32(vaddq_f32(acc0, acc1));
+    for (; i < n; i++)
+        acc += x[i] * (float)w[i];
+    return acc;
+}
+#endif
+
 /* ── Blob size calculations ─────────────────────────────────────────────────
  */
 #define LLM_VEC_BLOB_SIZE(n) (4 + (int)(n) * 4)

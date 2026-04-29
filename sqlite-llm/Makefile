@@ -27,8 +27,8 @@ MULTIARCH_INC := -I/usr/include/$(DEB_MULTIARCH)
 endif
 
 # -march=native enables the host ISA automatically; x86 fast paths stay gated
-# behind LLM_HAVE_AVX2 while the initial ARM port forces the portable scalar
-# path until NEON-specific kernels are added.
+# behind LLM_HAVE_AVX2 while the ARM tree selects NEON kernels only when the
+# compiler target exposes __ARM_NEON* and otherwise falls back to scalar code.
 COMMON_CFLAGS := -O3 -march=native \
 				 -Wall -Wextra -Wpedantic \
 				 -fPIC -fvisibility=hidden \

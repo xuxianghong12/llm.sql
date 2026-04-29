@@ -15,13 +15,29 @@
 SQLITE_EXTENSION_INIT3
 
 static void k_sub_simd(const float *a, const float *b, float *c, int n) {
+#if LLM_HAVE_NEON
+    int i = 0;
+    for (; i <= n - 4; i += 4)
+        vst1q_f32(c + i, vsubq_f32(vld1q_f32(a + i), vld1q_f32(b + i)));
+    for (; i < n; i++)
+        c[i] = a[i] - b[i];
+#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] - b[i];
+#endif
 }
 
 static void k_mul_simd(const float *a, const float *b, float *c, int n) {
+#if LLM_HAVE_NEON
+    int i = 0;
+    for (; i <= n - 4; i += 4)
+        vst1q_f32(c + i, vmulq_f32(vld1q_f32(a + i), vld1q_f32(b + i)));
+    for (; i < n; i++)
+        c[i] = a[i] * b[i];
+#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] * b[i];
+#endif
 }
 
 static void k_div_simd(const float *a, const float *b, float *c, int n) {
@@ -30,8 +46,17 @@ static void k_div_simd(const float *a, const float *b, float *c, int n) {
 }
 
 static void k_scale_simd(const float *a, float alpha, float *b, int n) {
+#if LLM_HAVE_NEON
+    float32x4_t valpha = vdupq_n_f32(alpha);
+    int i = 0;
+    for (; i <= n - 4; i += 4)
+        vst1q_f32(b + i, vmulq_f32(vld1q_f32(a + i), valpha));
+    for (; i < n; i++)
+        b[i] = alpha * a[i];
+#else
     for (int i = 0; i < n; i++)
         b[i] = alpha * a[i];
+#endif
 }
 
 static void k_add_blas(const float *a, const float *b, float *c, int n) {

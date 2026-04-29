@@ -21,8 +21,22 @@ k_gemm_simd(const float *A, const float *B, float *C, int M, int K, int N) {
     for (int i = 0; i < M; i++) {
         for (int k = 0; k < K; k++) {
             float a_ik = A[(size_t)i * K + k];
+#if LLM_HAVE_NEON
+            float32x4_t va = vdupq_n_f32(a_ik);
+            int j = 0;
+            for (; j <= N - 4; j += 4) {
+                float *cptr = C + (size_t)i * N + j;
+                vst1q_f32(cptr,
+                          vmlaq_f32(vld1q_f32(cptr),
+                                    vld1q_f32(B + (size_t)k * N + j),
+                                    va));
+            }
+            for (; j < N; j++)
+                C[(size_t)i * N + j] += a_ik * B[(size_t)k * N + j];
+#else
             for (int j = 0; j < N; j++)
                 C[(size_t)i * N + j] += a_ik * B[(size_t)k * N + j];
+#endif
         }
     }
 }

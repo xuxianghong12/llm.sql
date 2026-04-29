@@ -99,7 +99,14 @@ static void quantize_rows(void *raw, int32_t r0, int32_t r1) {
         const float *row = arg->src + (size_t)row_idx * row_len;
         int8_t *qrow = arg->dst + (size_t)row_idx * row_len;
         float absmax = 0.0f;
-        for (int32_t col_idx = 0; col_idx < row_len; col_idx++) {
+        int32_t col_idx = 0;
+    #if LLM_HAVE_NEON
+        float32x4_t vmax = vdupq_n_f32(0.0f);
+        for (; col_idx + 4 <= row_len; col_idx += 4)
+            vmax = vmaxq_f32(vmax, vabsq_f32(vld1q_f32(row + col_idx)));
+        absmax = llm_hmaxq_f32(vmax);
+    #endif
+        for (; col_idx < row_len; col_idx++) {
             float v = row[col_idx] < 0 ? -row[col_idx] : row[col_idx];
             if (v > absmax)
                 absmax = v;
@@ -163,7 +170,12 @@ static void dequantize_rows(void *raw, int32_t r0, int32_t r1) {
         const int8_t *qrow = arg->src + (size_t)row_idx * row_len;
         float *out_row = arg->dst + (size_t)row_idx * row_len;
         float scale = arg->scales[row_idx];
-        for (int32_t col_idx = 0; col_idx < row_len; col_idx++)
+        int32_t col_idx = 0;
+#if LLM_HAVE_NEON
+        for (; col_idx + 8 <= row_len; col_idx += 8)
+            llm_store_dequantize_i8x8(out_row + col_idx, qrow + col_idx, scale);
+#endif
+        for (; col_idx < row_len; col_idx++)
             out_row[col_idx] = (float)qrow[col_idx] * scale;
     }
 }
@@ -190,10 +202,14 @@ void sql_dequantize_int8_nd(sqlite3_context *ctx,
 }
 
 LLM_INLINE float dot_i8f32(const float *x, const int8_t *w, int32_t K) {
+#if LLM_HAVE_NEON
+    return llm_dot_i8f32_neon(x, w, K);
+#else
     float acc = 0.0f;
     for (int32_t k = 0; k < K; k++)
         acc += x[k] * (float)w[k];
     return acc;
+#endif
 }
 
 typedef struct {
@@ -662,7 +678,12 @@ void sql_embedding_int8_nd(sqlite3_context *ctx,
         float scale = tw.scales[idx];
         const int8_t *qrow = tw.data + (size_t)idx * embed;
         float *drow = dst + (size_t)i * embed;
-        for (int32_t j = 0; j < embed; j++)
+        int32_t j = 0;
+    #if LLM_HAVE_NEON
+        for (; j + 8 <= embed; j += 8)
+            llm_store_dequantize_i8x8(drow + j, qrow + j, scale);
+    #endif
+        for (; j < embed; j++)
             drow[j] = (float)qrow[j] * scale;
     }
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
@@ -728,7 +749,12 @@ void sql_embedding_param_nd(sqlite3_context *ctx,
             float scale = twq.scales[idx];
             const int8_t *qrow = twq.data + (size_t)idx * embed;
             float *drow = dst + (size_t)i * embed;
-            for (int32_t j = 0; j < embed; j++)
+            int32_t j = 0;
+#if LLM_HAVE_NEON
+            for (; j + 8 <= embed; j += 8)
+                llm_store_dequantize_i8x8(drow + j, qrow + j, scale);
+#endif
+            for (; j < embed; j++)
                 drow[j] = (float)qrow[j] * scale;
         }
 
