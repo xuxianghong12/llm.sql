@@ -18,6 +18,11 @@
 CC        := gcc
 # Configurable thread count for int8 parallel ops (default: 4)
 LLM_NUM_THREADS ?= 4
+DEB_MULTIARCH := $(shell $(CC) -print-multiarch 2>/dev/null)
+
+ifneq ($(strip $(DEB_MULTIARCH)),)
+MULTIARCH_INC := -I/usr/include/$(DEB_MULTIARCH)
+endif
 
 # -march=native enables AVX2+FMA (and all other host features) automatically;
 # explicit -mavx2/-mfma are redundant.  -ffast-math is intentionally omitted
@@ -29,7 +34,7 @@ CFLAGS    := -O3 -march=native \
 			 -I. \
 			 -Ix86 \
              -I/usr/include \
-             -I/usr/include/x86_64-linux-gnu
+			 $(MULTIARCH_INC)
 
 # SQLite amalgamation header (use system-installed dev package)
 SQLITE_INC := $(shell pkg-config --cflags sqlite3 2>/dev/null || echo "-I/usr/include")
