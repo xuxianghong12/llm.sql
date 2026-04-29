@@ -19,38 +19,11 @@ SQLITE_EXTENSION_INIT3
 static void
 k_rmsnorm(const float *a, const float *w, float *b, int n, float eps) {
     float ss = 0.0f;
-#if LLM_HAVE_AVX2
-    {
-        __m256 acc = _mm256_setzero_ps();
-        int i = 0;
-        for (; i <= n - 8; i += 8)
-            acc = _mm256_fmadd_ps(
-                _mm256_loadu_ps(a + i), _mm256_loadu_ps(a + i), acc);
-        ss = llm_hsum256(acc);
-        for (; i < n; i++)
-            ss += a[i] * a[i];
-    }
-#else
     for (int i = 0; i < n; i++)
         ss += a[i] * a[i];
-#endif
     float scale = 1.0f / sqrtf(ss / (float)n + eps);
-#if LLM_HAVE_AVX2
-    {
-        __m256 vs = _mm256_set1_ps(scale);
-        int i = 0;
-        for (; i <= n - 8; i += 8)
-            _mm256_storeu_ps(
-                b + i,
-                _mm256_mul_ps(_mm256_mul_ps(_mm256_loadu_ps(a + i), vs),
-                              _mm256_loadu_ps(w + i)));
-        for (; i < n; i++)
-            b[i] = a[i] * scale * w[i];
-    }
-#else
     for (int i = 0; i < n; i++)
         b[i] = a[i] * scale * w[i];
-#endif
 }
 
 static void k_layernorm(const float *a,
@@ -60,63 +33,18 @@ static void k_layernorm(const float *a,
                         int n,
                         float eps) {
     float mean = 0.0f;
-#if LLM_HAVE_AVX2
-    {
-        __m256 acc = _mm256_setzero_ps();
-        int i = 0;
-        for (; i <= n - 8; i += 8)
-            acc = _mm256_add_ps(acc, _mm256_loadu_ps(a + i));
-        mean = llm_hsum256(acc);
-        for (; i < n; i++)
-            mean += a[i];
-    }
-#else
     for (int i = 0; i < n; i++)
         mean += a[i];
-#endif
     mean /= (float)n;
     float var = 0.0f;
-#if LLM_HAVE_AVX2
-    {
-        __m256 vmean = _mm256_set1_ps(mean), acc = _mm256_setzero_ps();
-        int i = 0;
-        for (; i <= n - 8; i += 8) {
-            __m256 d = _mm256_sub_ps(_mm256_loadu_ps(a + i), vmean);
-            acc = _mm256_fmadd_ps(d, d, acc);
-        }
-        var = llm_hsum256(acc);
-        for (; i < n; i++) {
-            float d = a[i] - mean;
-            var += d * d;
-        }
-    }
-#else
     for (int i = 0; i < n; i++) {
         float d = a[i] - mean;
         var += d * d;
     }
-#endif
     var /= (float)n;
     float scale = 1.0f / sqrtf(var + eps);
-#if LLM_HAVE_AVX2
-    {
-        __m256 vmean = _mm256_set1_ps(mean), vscale = _mm256_set1_ps(scale);
-        int i = 0;
-        for (; i <= n - 8; i += 8) {
-            __m256 norm = _mm256_mul_ps(
-                _mm256_sub_ps(_mm256_loadu_ps(a + i), vmean), vscale);
-            _mm256_storeu_ps(b + i,
-                             _mm256_fmadd_ps(norm,
-                                             _mm256_loadu_ps(w + i),
-                                             _mm256_loadu_ps(bias + i)));
-        }
-        for (; i < n; i++)
-            b[i] = (a[i] - mean) * scale * w[i] + bias[i];
-    }
-#else
     for (int i = 0; i < n; i++)
         b[i] = (a[i] - mean) * scale * w[i] + bias[i];
-#endif
 }
 
 void sql_rmsnorm(sqlite3_context *ctx, int argc, sqlite3_value **argv) {

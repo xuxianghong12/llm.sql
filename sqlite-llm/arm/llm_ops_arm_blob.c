@@ -15,62 +15,23 @@
 SQLITE_EXTENSION_INIT3
 
 static void k_sub_simd(const float *a, const float *b, float *c, int n) {
-#if LLM_HAVE_AVX2
-    int i = 0;
-    for (; i <= n - 8; i += 8)
-        _mm256_storeu_ps(
-            c + i,
-            _mm256_sub_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i)));
-    for (; i < n; i++)
-        c[i] = a[i] - b[i];
-#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] - b[i];
-#endif
 }
 
 static void k_mul_simd(const float *a, const float *b, float *c, int n) {
-#if LLM_HAVE_AVX2
-    int i = 0;
-    for (; i <= n - 8; i += 8)
-        _mm256_storeu_ps(
-            c + i,
-            _mm256_mul_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i)));
-    for (; i < n; i++)
-        c[i] = a[i] * b[i];
-#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] * b[i];
-#endif
 }
 
 static void k_div_simd(const float *a, const float *b, float *c, int n) {
-#if LLM_HAVE_AVX2
-    int i = 0;
-    for (; i <= n - 8; i += 8)
-        _mm256_storeu_ps(
-            c + i,
-            _mm256_div_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i)));
-    for (; i < n; i++)
-        c[i] = a[i] / b[i];
-#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] / b[i];
-#endif
 }
 
 static void k_scale_simd(const float *a, float alpha, float *b, int n) {
-#if LLM_HAVE_AVX2
-    __m256 va = _mm256_set1_ps(alpha);
-    int i = 0;
-    for (; i <= n - 8; i += 8)
-        _mm256_storeu_ps(b + i, _mm256_mul_ps(_mm256_loadu_ps(a + i), va));
-    for (; i < n; i++)
-        b[i] = alpha * a[i];
-#else
     for (int i = 0; i < n; i++)
         b[i] = alpha * a[i];
-#endif
 }
 
 static void k_add_blas(const float *a, const float *b, float *c, int n) {

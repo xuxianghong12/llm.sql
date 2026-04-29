@@ -21,21 +21,8 @@ k_gemm_simd(const float *A, const float *B, float *C, int M, int K, int N) {
     for (int i = 0; i < M; i++) {
         for (int k = 0; k < K; k++) {
             float a_ik = A[(size_t)i * K + k];
-#if LLM_HAVE_AVX2
-            __m256 va = _mm256_set1_ps(a_ik);
-            int j = 0;
-            for (; j <= N - 8; j += 8)
-                _mm256_storeu_ps(
-                    C + (size_t)i * N + j,
-                    _mm256_fmadd_ps(va,
-                                    _mm256_loadu_ps(B + (size_t)k * N + j),
-                                    _mm256_loadu_ps(C + (size_t)i * N + j)));
-            for (; j < N; j++)
-                C[(size_t)i * N + j] += a_ik * B[(size_t)k * N + j];
-#else
             for (int j = 0; j < N; j++)
                 C[(size_t)i * N + j] += a_ik * B[(size_t)k * N + j];
-#endif
         }
     }
 }

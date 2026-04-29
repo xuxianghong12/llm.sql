@@ -99,25 +99,7 @@ static void quantize_rows(void *raw, int32_t r0, int32_t r1) {
         const float *row = arg->src + (size_t)row_idx * row_len;
         int8_t *qrow = arg->dst + (size_t)row_idx * row_len;
         float absmax = 0.0f;
-        int32_t col_idx = 0;
-#if LLM_HAVE_AVX2
-        {
-            __m256 vmax = _mm256_setzero_ps();
-            __m256 sign_mask =
-                _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-            for (; col_idx + 8 <= row_len; col_idx += 8) {
-                __m256 v = _mm256_loadu_ps(row + col_idx);
-                vmax = _mm256_max_ps(vmax, _mm256_and_ps(v, sign_mask));
-            }
-            __m128 lo = _mm256_castps256_ps128(vmax);
-            __m128 hi = _mm256_extractf128_ps(vmax, 1);
-            lo = _mm_max_ps(lo, hi);
-            lo = _mm_max_ps(lo, _mm_shuffle_ps(lo, lo, 0x4E));
-            lo = _mm_max_ps(lo, _mm_shuffle_ps(lo, lo, 0xB1));
-            absmax = _mm_cvtss_f32(lo);
-        }
-#endif
-        for (; col_idx < row_len; col_idx++) {
+        for (int32_t col_idx = 0; col_idx < row_len; col_idx++) {
             float v = row[col_idx] < 0 ? -row[col_idx] : row[col_idx];
             if (v > absmax)
                 absmax = v;
@@ -131,29 +113,7 @@ static void quantize_rows(void *raw, int32_t r0, int32_t r1) {
         }
 
         float inv_scale = 127.0f / absmax;
-        col_idx = 0;
-#if LLM_HAVE_AVX2
-        {
-            __m256 vinv = _mm256_set1_ps(inv_scale);
-            __m256 vmin = _mm256_set1_ps(-127.0f);
-            __m256 vmax_q = _mm256_set1_ps(127.0f);
-            for (; col_idx + 8 <= row_len; col_idx += 8) {
-                __m256 v = _mm256_mul_ps(_mm256_loadu_ps(row + col_idx), vinv);
-                v = _mm256_round_ps(v,
-                                    _MM_FROUND_TO_NEAREST_INT |
-                                        _MM_FROUND_NO_EXC);
-                v = _mm256_max_ps(v, vmin);
-                v = _mm256_min_ps(v, vmax_q);
-                __m256i vi = _mm256_cvtps_epi32(v);
-                __m128i lo = _mm256_castsi256_si128(vi);
-                __m128i hi = _mm256_extracti128_si256(vi, 1);
-                __m128i i16 = _mm_packs_epi32(lo, hi);
-                __m128i i8 = _mm_packs_epi16(i16, i16);
-                _mm_storel_epi64((__m128i *)(qrow + col_idx), i8);
-            }
-        }
-#endif
-        for (; col_idx < row_len; col_idx++) {
+        for (int32_t col_idx = 0; col_idx < row_len; col_idx++) {
             float v = row[col_idx] * inv_scale;
             int q = (int)roundf(v);
             if (q < -127)
@@ -203,16 +163,7 @@ static void dequantize_rows(void *raw, int32_t r0, int32_t r1) {
         const int8_t *qrow = arg->src + (size_t)row_idx * row_len;
         float *out_row = arg->dst + (size_t)row_idx * row_len;
         float scale = arg->scales[row_idx];
-        int32_t col_idx = 0;
-#if LLM_HAVE_AVX2
-        __m256 vscale = _mm256_set1_ps(scale);
-        for (; col_idx + 8 <= row_len; col_idx += 8) {
-            __m128i vi8 = _mm_loadl_epi64((const __m128i *)(qrow + col_idx));
-            __m256 vf = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8));
-            _mm256_storeu_ps(out_row + col_idx, _mm256_mul_ps(vf, vscale));
-        }
-#endif
-        for (; col_idx < row_len; col_idx++)
+        for (int32_t col_idx = 0; col_idx < row_len; col_idx++)
             out_row[col_idx] = (float)qrow[col_idx] * scale;
     }
 }
@@ -238,56 +189,11 @@ void sql_dequantize_int8_nd(sqlite3_context *ctx,
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
 }
 
-#if LLM_HAVE_AVX2
-LLM_INLINE float dot_i8f32_avx2(const float *x, const int8_t *w, int32_t K) {
-    __m256 vacc0 = _mm256_setzero_ps();
-    __m256 vacc1 = _mm256_setzero_ps();
-    __m256 vacc2 = _mm256_setzero_ps();
-    __m256 vacc3 = _mm256_setzero_ps();
-    int32_t k = 0;
-    for (; k + 32 <= K; k += 32) {
-        __m128i vi8a = _mm_loadl_epi64((const __m128i *)(w + k));
-        __m128i vi8b = _mm_loadl_epi64((const __m128i *)(w + k + 8));
-        __m128i vi8c = _mm_loadl_epi64((const __m128i *)(w + k + 16));
-        __m128i vi8d = _mm_loadl_epi64((const __m128i *)(w + k + 24));
-        vacc0 = _mm256_fmadd_ps(_mm256_loadu_ps(x + k),
-                                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8a)),
-                                vacc0);
-        vacc1 = _mm256_fmadd_ps(_mm256_loadu_ps(x + k + 8),
-                                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8b)),
-                                vacc1);
-        vacc2 = _mm256_fmadd_ps(_mm256_loadu_ps(x + k + 16),
-                                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8c)),
-                                vacc2);
-        vacc3 = _mm256_fmadd_ps(_mm256_loadu_ps(x + k + 24),
-                                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8d)),
-                                vacc3);
-    }
-    vacc0 = _mm256_add_ps(vacc0, vacc1);
-    vacc2 = _mm256_add_ps(vacc2, vacc3);
-    vacc0 = _mm256_add_ps(vacc0, vacc2);
-    for (; k + 8 <= K; k += 8) {
-        __m128i vi8 = _mm_loadl_epi64((const __m128i *)(w + k));
-        vacc0 = _mm256_fmadd_ps(_mm256_loadu_ps(x + k),
-                                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8)),
-                                vacc0);
-    }
-    float acc = llm_hsum256(vacc0);
-    for (; k < K; k++)
-        acc += x[k] * (float)w[k];
-    return acc;
-}
-#endif
-
 LLM_INLINE float dot_i8f32(const float *x, const int8_t *w, int32_t K) {
-#if LLM_HAVE_AVX2
-    return dot_i8f32_avx2(x, w, K);
-#else
     float acc = 0.0f;
     for (int32_t k = 0; k < K; k++)
         acc += x[k] * (float)w[k];
     return acc;
-#endif
 }
 
 typedef struct {
@@ -313,57 +219,7 @@ static void linear_int8_rows_m(void *raw, int32_t m0, int32_t m1) {
 static void linear_int8_rows_n(void *raw, int32_t n0, int32_t n1) {
     LinearInt8Arg *arg = (LinearInt8Arg *)raw;
     const float *xrow = arg->x;
-    int32_t n = n0;
-#if LLM_HAVE_AVX2
-    for (; n + 4 <= n1; n += 4) {
-        const int8_t *w0 = arg->wq + (size_t)n * arg->K;
-        const int8_t *w1 = arg->wq + (size_t)(n + 1) * arg->K;
-        const int8_t *w2 = arg->wq + (size_t)(n + 2) * arg->K;
-        const int8_t *w3 = arg->wq + (size_t)(n + 3) * arg->K;
-        __m256 va0 = _mm256_setzero_ps();
-        __m256 va1 = _mm256_setzero_ps();
-        __m256 va2 = _mm256_setzero_ps();
-        __m256 va3 = _mm256_setzero_ps();
-        int32_t k = 0;
-        for (; k + 8 <= arg->K; k += 8) {
-            __m256 vx = _mm256_loadu_ps(xrow + k);
-            va0 = _mm256_fmadd_ps(
-                vx,
-                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(
-                    _mm_loadl_epi64((const __m128i *)(w0 + k)))),
-                va0);
-            va1 = _mm256_fmadd_ps(
-                vx,
-                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(
-                    _mm_loadl_epi64((const __m128i *)(w1 + k)))),
-                va1);
-            va2 = _mm256_fmadd_ps(
-                vx,
-                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(
-                    _mm_loadl_epi64((const __m128i *)(w2 + k)))),
-                va2);
-            va3 = _mm256_fmadd_ps(
-                vx,
-                _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(
-                    _mm_loadl_epi64((const __m128i *)(w3 + k)))),
-                va3);
-        }
-        float s0 = llm_hsum256(va0), s1 = llm_hsum256(va1);
-        float s2 = llm_hsum256(va2), s3 = llm_hsum256(va3);
-        for (; k < arg->K; k++) {
-            float xk = xrow[k];
-            s0 += xk * (float)w0[k];
-            s1 += xk * (float)w1[k];
-            s2 += xk * (float)w2[k];
-            s3 += xk * (float)w3[k];
-        }
-        arg->dst[n] = s0 * arg->scales[n];
-        arg->dst[n + 1] = s1 * arg->scales[n + 1];
-        arg->dst[n + 2] = s2 * arg->scales[n + 2];
-        arg->dst[n + 3] = s3 * arg->scales[n + 3];
-    }
-#endif
-    for (; n < n1; n++) {
+    for (int32_t n = n0; n < n1; n++) {
         const int8_t *wrow = arg->wq + (size_t)n * arg->K;
         arg->dst[n] = dot_i8f32(xrow, wrow, arg->K) * arg->scales[n];
     }
@@ -806,16 +662,7 @@ void sql_embedding_int8_nd(sqlite3_context *ctx,
         float scale = tw.scales[idx];
         const int8_t *qrow = tw.data + (size_t)idx * embed;
         float *drow = dst + (size_t)i * embed;
-        int32_t j = 0;
-#if LLM_HAVE_AVX2
-        __m256 vscale = _mm256_set1_ps(scale);
-        for (; j + 8 <= embed; j += 8) {
-            __m128i vi8 = _mm_loadl_epi64((const __m128i *)(qrow + j));
-            __m256 vf = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8));
-            _mm256_storeu_ps(drow + j, _mm256_mul_ps(vf, vscale));
-        }
-#endif
-        for (; j < embed; j++)
+        for (int32_t j = 0; j < embed; j++)
             drow[j] = (float)qrow[j] * scale;
     }
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
@@ -881,16 +728,7 @@ void sql_embedding_param_nd(sqlite3_context *ctx,
             float scale = twq.scales[idx];
             const int8_t *qrow = twq.data + (size_t)idx * embed;
             float *drow = dst + (size_t)i * embed;
-            int32_t j = 0;
-#if LLM_HAVE_AVX2
-            __m256 vscale = _mm256_set1_ps(scale);
-            for (; j + 8 <= embed; j += 8) {
-                __m128i vi8 = _mm_loadl_epi64((const __m128i *)(qrow + j));
-                __m256 vf = _mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(vi8));
-                _mm256_storeu_ps(drow + j, _mm256_mul_ps(vf, vscale));
-            }
-#endif
-            for (; j < embed; j++)
+            for (int32_t j = 0; j < embed; j++)
                 drow[j] = (float)qrow[j] * scale;
         }
 

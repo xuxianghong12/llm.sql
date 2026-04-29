@@ -18,30 +18,11 @@ SQLITE_EXTENSION_INIT3
 static void k_rope_simd(
     const float *x, const float *cv, const float *sv, float *out, int hd) {
     int half = hd / 2;
-#if LLM_HAVE_AVX2
-    int i = 0;
-    for (; i <= half - 4; i += 4) {
-        __m128 xlo = _mm_loadu_ps(x + 2 * i), xhi = _mm_loadu_ps(x + 2 * i + 4);
-        __m128 xe = _mm_shuffle_ps(xlo, xhi, _MM_SHUFFLE(2, 0, 2, 0));
-        __m128 xo = _mm_shuffle_ps(xlo, xhi, _MM_SHUFFLE(3, 1, 3, 1));
-        __m128 vc = _mm_loadu_ps(cv + i), vs = _mm_loadu_ps(sv + i);
-        __m128 re = _mm_sub_ps(_mm_mul_ps(xe, vc), _mm_mul_ps(xo, vs));
-        __m128 ro = _mm_add_ps(_mm_mul_ps(xe, vs), _mm_mul_ps(xo, vc));
-        _mm_storeu_ps(out + 2 * i, _mm_unpacklo_ps(re, ro));
-        _mm_storeu_ps(out + 2 * i + 4, _mm_unpackhi_ps(re, ro));
-    }
-    for (; i < half; i++) {
-        float xe = x[2 * i], xo = x[2 * i + 1];
-        out[2 * i] = xe * cv[i] - xo * sv[i];
-        out[2 * i + 1] = xe * sv[i] + xo * cv[i];
-    }
-#else
     for (int i = 0; i < half; i++) {
         float xe = x[2 * i], xo = x[2 * i + 1];
         out[2 * i] = xe * cv[i] - xo * sv[i];
         out[2 * i + 1] = xe * sv[i] + xo * cv[i];
     }
-#endif
 }
 
 void sql_rope(sqlite3_context *ctx, int argc, sqlite3_value **argv) {

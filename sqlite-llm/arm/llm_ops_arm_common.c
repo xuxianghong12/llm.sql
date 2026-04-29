@@ -15,37 +15,15 @@
 SQLITE_EXTENSION_INIT3
 
 void k_add_simd(const float *a, const float *b, float *c, int n) {
-#if LLM_HAVE_AVX2
-    int i = 0;
-    for (; i <= n - 8; i += 8)
-        _mm256_storeu_ps(
-            c + i,
-            _mm256_add_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i)));
-    for (; i < n; i++)
-        c[i] = a[i] + b[i];
-#else
     for (int i = 0; i < n; i++)
         c[i] = a[i] + b[i];
-#endif
 }
 
 float k_dot_simd(const float *a, const float *b, int n) {
-#if LLM_HAVE_AVX2
-    __m256 acc = _mm256_setzero_ps();
-    int i = 0;
-    for (; i <= n - 8; i += 8)
-        acc = _mm256_fmadd_ps(
-            _mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i), acc);
-    float sum = llm_hsum256(acc);
-    for (; i < n; i++)
-        sum += a[i] * b[i];
-    return sum;
-#else
     float sum = 0.0f;
     for (int i = 0; i < n; i++)
         sum += a[i] * b[i];
     return sum;
-#endif
 }
 
 void *alloc_vec_blob(int n, const float *data, int *sz_out) {

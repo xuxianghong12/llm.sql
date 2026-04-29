@@ -30,10 +30,9 @@
 
 /* ── SIMD availability ──────────────────────────────────────────────────────
  *
- * The initial ARM port keeps the SQL surface identical to x86 but routes all
- * SIMD-gated code through the portable scalar path. This lets the split ARM
- * tree compile and run the full operator/test surface immediately on any host
- * while leaving a dedicated LLM_HAVE_NEON hook for later optimized kernels.
+ * ARM-specific kernels must gate vectorized paths through LLM_HAVE_NEON.
+ * Any code that is not explicitly written for NEON falls back to the scalar
+ * reference implementation in the owning source file.
  */
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
 #include <arm_neon.h>
@@ -41,8 +40,6 @@
 #else
 #define LLM_HAVE_NEON 0
 #endif
-
-#define LLM_HAVE_AVX2 0
 
 /* ── Compiler hints ─────────────────────────────────────────────────────────
  */
@@ -299,18 +296,6 @@ llm_build_nd(int ndim, const int32_t *shape, const float *data, int *sz_out) {
     *sz_out = sz;
     return b;
 }
-
-/* ── Horizontal sum of an AVX2 register ──────────────────────────────────── */
-#if LLM_HAVE_AVX2
-LLM_INLINE float llm_hsum256(__m256 v) {
-    __m128 lo = _mm256_castps256_ps128(v);
-    __m128 hi = _mm256_extractf128_ps(v, 1);
-    __m128 sum = _mm_add_ps(lo, hi);
-    sum = _mm_hadd_ps(sum, sum);
-    sum = _mm_hadd_ps(sum, sum);
-    return _mm_cvtss_f32(sum);
-}
-#endif
 
 /* ── Scalar math helpers ─────────────────────────────────────────────────── */
 LLM_INLINE float llm_gelu(float x) {
