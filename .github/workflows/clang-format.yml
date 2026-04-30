@@ -1,0 +1,44 @@
+name: Auto format C with clang-format
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - '**/*.c'
+      - '**/*.h'
+      - '.clang-format'
+  pull_request:
+    paths:
+      - '**/*.c'
+      - '**/*.h'
+      - '.clang-format'
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run clang-format
+        run: |
+          find . -path './.git' -prune -o -type f \( -name '*.c' -o -name '*.h' \) -print0 | xargs -0 clang-format -i
+
+      - name: Commit formatted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          LATEST_MSG=$(git log -1 --pretty=%B || echo "")
+          if [ "$LATEST_MSG" != "chore: format C files with clang-format" ] && [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore: format C files with clang-format"
+            git push
+          else
+            echo "No formatting changes or already formatted."
+          fi
