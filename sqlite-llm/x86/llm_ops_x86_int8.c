@@ -1,5 +1,6 @@
 /*
- * llm_ops_x86_int8.c - INT8 quantization and parameter-backed inference wrappers
+ * llm_ops_x86_int8.c - INT8 quantization and parameter-backed inference
+ * wrappers
  *
  * This file owns the quantized tensor path: fp32<->int8 conversion, int8
  * linear layers, int8 embeddings, and parameter-backed lookup wrappers that
@@ -65,11 +66,8 @@ static void parallel_rows(void (*func)(void *, int32_t, int32_t),
         pthread_join(threads[i], NULL);
 }
 
-static void *int8_result_alloc(int ndim,
-                               const int32_t *shape,
-                               int32_t total,
-                               int32_t nrows,
-                               int *sz_out) {
+static void *int8_result_alloc(
+    int ndim, const int32_t *shape, int32_t total, int32_t nrows, int *sz_out) {
     int hdr = LLM_INT8_HDR(ndim);
     int scales_bytes = nrows * 4;
     int data_bytes = total;
@@ -139,9 +137,8 @@ static void quantize_rows(void *raw, int32_t r0, int32_t r1) {
             __m256 vmax_q = _mm256_set1_ps(127.0f);
             for (; col_idx + 8 <= row_len; col_idx += 8) {
                 __m256 v = _mm256_mul_ps(_mm256_loadu_ps(row + col_idx), vinv);
-                v = _mm256_round_ps(v,
-                                    _MM_FROUND_TO_NEAREST_INT |
-                                        _MM_FROUND_NO_EXC);
+                v = _mm256_round_ps(
+                    v, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
                 v = _mm256_max_ps(v, vmin);
                 v = _mm256_min_ps(v, vmax_q);
                 __m256i vi = _mm256_cvtps_epi32(v);
@@ -165,10 +162,13 @@ static void quantize_rows(void *raw, int32_t r0, int32_t r1) {
     }
 }
 
-void sql_quantize_int8_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+void sql_quantize_int8_nd(sqlite3_context *ctx,
+                          int argc,
+                          sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_quantize_int8_nd: invalid tensor");
 
     int32_t row_len = tx.shape[tx.ndim - 1];
@@ -222,7 +222,8 @@ void sql_dequantize_int8_nd(sqlite3_context *ctx,
                             sqlite3_value **argv) {
     (void)argc;
     TensorNDInt8 tq;
-    if (llm_parse_int8(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tq) < 0)
+    if (llm_parse_int8(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tq) < 0)
         ERR(ctx, "llm_dequantize_int8_nd: invalid int8 tensor");
 
     int out_sz;
@@ -373,9 +374,11 @@ void sql_linear_int8_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx;
     TensorNDInt8 tw;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_linear_int8_nd: invalid x");
-    if (llm_parse_int8(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
+    if (llm_parse_int8(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
         ERR(ctx, "llm_linear_int8_nd: invalid int8 weight");
     if (tx.ndim < 1)
         ERR(ctx, "llm_linear_int8_nd: x must be at least 1-D");
@@ -420,11 +423,14 @@ void sql_linear_int8_bias_nd(sqlite3_context *ctx,
     (void)argc;
     TensorNDF32 tx, tb;
     TensorNDInt8 tw;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_linear_int8_bias_nd: invalid x");
-    if (llm_parse_int8(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
+    if (llm_parse_int8(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
         ERR(ctx, "llm_linear_int8_bias_nd: invalid int8 weight");
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &tb) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &tb) < 0)
         ERR(ctx, "llm_linear_int8_bias_nd: invalid bias");
     if (tx.ndim < 1)
         ERR(ctx, "llm_linear_int8_bias_nd: x must be at least 1-D");
@@ -480,7 +486,8 @@ void sql_linear_param_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     const void *weight_blob = NULL;
     int weight_size = 0;
 
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_linear_param_nd: invalid x");
     if (llm_param_lookup_step_blob(lookup,
                                    db,
@@ -620,9 +627,11 @@ void sql_linear_param_bias_nd(sqlite3_context *ctx,
     const void *weight_blob = NULL;
     int weight_size = 0;
 
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_linear_param_bias_nd: invalid x");
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &tb) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &tb) < 0)
         ERR(ctx, "llm_linear_param_bias_nd: invalid bias");
     if (llm_param_lookup_step_blob(lookup,
                                    db,
@@ -770,9 +779,11 @@ void sql_embedding_int8_nd(sqlite3_context *ctx,
     (void)argc;
     TensorNDInt8 tw;
     TensorNDF32 ti;
-    if (llm_parse_int8(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tw) < 0)
+    if (llm_parse_int8(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tw) < 0)
         ERR(ctx, "llm_embedding_int8_nd: invalid int8 weight");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &ti) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &ti) < 0)
         ERR(ctx, "llm_embedding_int8_nd: invalid indices");
     if (tw.ndim != 2)
         ERR(ctx, "llm_embedding_int8_nd: weight must be 2-D");
@@ -833,7 +844,8 @@ void sql_embedding_param_nd(sqlite3_context *ctx,
     const void *weight_blob = NULL;
     int weight_size = 0;
 
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &ti) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &ti) < 0)
         ERR(ctx, "llm_embedding_param_nd: invalid indices");
     if (llm_param_lookup_step_blob(lookup,
                                    db,

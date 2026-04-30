@@ -96,10 +96,11 @@ static void k_layernorm(const float *a,
     float32x4_t vscale = vdupq_n_f32(scale);
     int i = 0;
     for (; i <= n - 4; i += 4) {
-        float32x4_t norm = vmulq_f32(vsubq_f32(vld1q_f32(a + i), vmean), vscale);
-        vst1q_f32(b + i,
-                  vaddq_f32(vmulq_f32(norm, vld1q_f32(w + i)),
-                            vld1q_f32(bias + i)));
+        float32x4_t norm =
+            vmulq_f32(vsubq_f32(vld1q_f32(a + i), vmean), vscale);
+        vst1q_f32(
+            b + i,
+            vaddq_f32(vmulq_f32(norm, vld1q_f32(w + i)), vld1q_f32(bias + i)));
     }
     for (; i < n; i++)
         b[i] = (a[i] - mean) * scale * w[i] + bias[i];

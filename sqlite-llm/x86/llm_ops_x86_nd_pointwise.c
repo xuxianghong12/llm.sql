@@ -110,7 +110,8 @@ void sql_silu_mul_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
         ERR(ctx, "llm_silu_mul_nd: invalid up blob");
     if (tg.total != tu.total)
         ERR(ctx,
-            "llm_silu_mul_nd: gate and up must have the same number of elements");
+            "llm_silu_mul_nd: gate and up must have the same number of "
+            "elements");
     int out_sz;
     void *out = nd_result_alloc(tg.ndim, tg.shape, tg.total, &out_sz);
     if (!out) {

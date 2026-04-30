@@ -100,10 +100,8 @@ typedef struct llm_param_lookup_t llm_param_lookup_t;
 void *alloc_vec_blob(int n, const float *data, int *sz_out);
 void *alloc_mat_blob(int rows, int cols, const float *data, int *sz_out);
 void nd_strides(const int32_t *shape, int ndim, int32_t *strides);
-void *nd_result_alloc(int ndim,
-                      const int32_t *shape,
-                      int32_t total,
-                      int *sz_out);
+void *
+nd_result_alloc(int ndim, const int32_t *shape, int32_t total, int *sz_out);
 int32_t broadcast_shape(const TensorNDF32 *ta,
                         const TensorNDF32 *tb,
                         int32_t *out_shape,
@@ -257,7 +255,9 @@ void sql_repeat_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
 void sql_repeat_kv_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
 void sql_flip_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
 void sql_roll_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
-void sql_repeat_interleave_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
+void sql_repeat_interleave_nd(sqlite3_context *ctx,
+                              int argc,
+                              sqlite3_value **argv);
 void sql_index_put_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
 void sql_repeat_interleave_tensor_nd(sqlite3_context *ctx,
                                      int argc,
@@ -275,7 +275,9 @@ void sql_bool_to_additive_mask_nd(sqlite3_context *ctx,
                                   sqlite3_value **argv);
 void sql_sdpa_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
 void sql_quantize_int8_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
-void sql_dequantize_int8_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
+void sql_dequantize_int8_nd(sqlite3_context *ctx,
+                            int argc,
+                            sqlite3_value **argv);
 void sql_linear_int8_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv);
 void sql_linear_int8_bias_nd(sqlite3_context *ctx,
                              int argc,

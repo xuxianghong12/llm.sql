@@ -50,8 +50,8 @@
 
 /* ── Blob size calculations ─────────────────────────────────────────────────
  */
-#define LLM_VEC_BLOB_SIZE(n) (4 + (int)(n) * 4)
-#define LLM_MAT_BLOB_SIZE(r, c) (8 + (int)(r) * (int)(c) * 4)
+#define LLM_VEC_BLOB_SIZE(n) (4 + (int)(n)*4)
+#define LLM_MAT_BLOB_SIZE(r, c) (8 + (int)(r) * (int)(c)*4)
 
 /* ── N-D tensor constants ───────────────────────────────────────────────────
  */
@@ -63,7 +63,7 @@
 #define LLM_MAX_CAT_TENSORS 64 /* max tensors for cat_multi / stack         */
 
 /* N-D header size: 4 bytes magic + 4 bytes ndim + ndim * 4 bytes shape      */
-#define LLM_ND_HDR(ndim) (8 + (int)(ndim) * 4)
+#define LLM_ND_HDR(ndim) (8 + (int)(ndim)*4)
 
 /* ── INT8 quantized tensor constants ─────────────────────────────────────── */
 /*
@@ -81,7 +81,7 @@
 #define LLM_INT8_MAGIC ((int32_t)0x80000008)
 
 /* INT8 N-D header size: same as FP32 N-D header                             */
-#define LLM_INT8_HDR(ndim) (8 + (int)(ndim) * 4)
+#define LLM_INT8_HDR(ndim) (8 + (int)(ndim)*4)
 
 /* INT8 quantized tensor view (points into blob memory).                     */
 typedef struct {

@@ -40,36 +40,32 @@ typedef struct {
     char memory_summary[512];
 } llmsql_profile;
 
-int llmsql_native_generate_tokens_profiled(
-    const char *model_dir,
-    const char *db_filename,
-    const char *prefill_graph_path,
-    const char *decode_graph_path,
-    const char *extension_path,
-    int num_threads,
-    const int *prompt_ids,
-    int prompt_len,
-    int max_tokens,
-    llmsql_generation *out,
-    llmsql_profile *profile,
-    char *error_buf,
-    size_t error_buf_size
-);
+int llmsql_native_generate_tokens_profiled(const char *model_dir,
+                                           const char *db_filename,
+                                           const char *prefill_graph_path,
+                                           const char *decode_graph_path,
+                                           const char *extension_path,
+                                           int num_threads,
+                                           const int *prompt_ids,
+                                           int prompt_len,
+                                           int max_tokens,
+                                           llmsql_generation *out,
+                                           llmsql_profile *profile,
+                                           char *error_buf,
+                                           size_t error_buf_size);
 
-int llmsql_native_generate_tokens(
-    const char *model_dir,
-    const char *db_filename,
-    const char *prefill_graph_path,
-    const char *decode_graph_path,
-    const char *extension_path,
-    int num_threads,
-    const int *prompt_ids,
-    int prompt_len,
-    int max_tokens,
-    llmsql_generation *out,
-    char *error_buf,
-    size_t error_buf_size
-);
+int llmsql_native_generate_tokens(const char *model_dir,
+                                  const char *db_filename,
+                                  const char *prefill_graph_path,
+                                  const char *decode_graph_path,
+                                  const char *extension_path,
+                                  int num_threads,
+                                  const int *prompt_ids,
+                                  int prompt_len,
+                                  int max_tokens,
+                                  llmsql_generation *out,
+                                  char *error_buf,
+                                  size_t error_buf_size);
 
 void llmsql_native_free_generation(llmsql_generation *generation);
 void llmsql_native_free_profile(llmsql_profile *profile);

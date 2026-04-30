@@ -89,9 +89,8 @@ static void broadcast_op(const TensorNDF32 *ta,
     }
 }
 
-static void sql_cmp_nd_impl(sqlite3_context *ctx,
-                            sqlite3_value **argv,
-                            int op) {
+static void
+sql_cmp_nd_impl(sqlite3_context *ctx, sqlite3_value **argv, int op) {
     TensorNDF32 ta, tb;
     if (llm_to_nd(
             sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)

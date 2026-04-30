@@ -8,7 +8,7 @@ PointerAlignment: Right
 BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortBlocksOnASingleLine: Never
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: None
 BinPackArguments: false
 BinPackParameters: false
 AlignTrailingComments: true

@@ -64,8 +64,7 @@ static void k_clip_simd(const float *a, float lo, float hi, float *b, int n) {
     float32x4_t vhi = vdupq_n_f32(hi);
     int i = 0;
     for (; i <= n - 4; i += 4)
-        vst1q_f32(b + i,
-                  vminq_f32(vmaxq_f32(vld1q_f32(a + i), vlo), vhi));
+        vst1q_f32(b + i, vminq_f32(vmaxq_f32(vld1q_f32(a + i), vlo), vhi));
     for (; i < n; i++) {
         float v = a[i];
         b[i] = v < lo ? lo : (v > hi ? hi : v);

@@ -138,33 +138,41 @@ int g_llm_num_threads = LLM_NUM_THREADS;
 /* N-D layout and indexing wrappers live in llm_ops_arm_nd_layout.c. */
 /* N-D algebra and broadcast wrappers live in llm_ops_arm_nd_algebra.c. */
 /* Shared N-D helpers live in llm_ops_arm_common.c. */
-/* N-D softmax, aggregate, and debug-string wrappers live in llm_ops_arm_nd_stats.c. */
+/* N-D softmax, aggregate, and debug-string wrappers live in
+ * llm_ops_arm_nd_stats.c. */
 
 /* N-D divide and comparison wrappers live in llm_ops_arm_nd_algebra.c. */
 
 /* N-D unary and pointwise transforms live in llm_ops_arm_nd_pointwise.c. */
 
-/* N-D logic, remainder, and inspection wrappers live in llm_ops_arm_nd_utility.c. */
+/* N-D logic, remainder, and inspection wrappers live in
+ * llm_ops_arm_nd_utility.c. */
 
-/* N-D reduction and value-selection wrappers live in llm_ops_arm_nd_reduce.c. */
+/* N-D reduction and value-selection wrappers live in llm_ops_arm_nd_reduce.c.
+ */
 
 /* N-D normalization and model wrappers live in llm_ops_arm_nd_model.c. */
 
-/* N-D masking, factory, and utility wrappers live in llm_ops_arm_nd_utility.c. */
+/* N-D masking, factory, and utility wrappers live in llm_ops_arm_nd_utility.c.
+ */
 
 /* ===========================================================================
  * Section 13b: Additional N-D ops (cumsum, gather, index_select, repeat, etc.)
  * =========================================================================*/
 
-/* N-D cumulative scan and indexed selection wrappers live in llm_ops_arm_nd_sequence.c. */
+/* N-D cumulative scan and indexed selection wrappers live in
+ * llm_ops_arm_nd_sequence.c. */
 
-/* N-D scatter, repeat, and reorder wrappers live in llm_ops_arm_nd_sequence.c. */
+/* N-D scatter, repeat, and reorder wrappers live in llm_ops_arm_nd_sequence.c.
+ */
 
-/* N-D indexed update and structural reorder wrappers live in llm_ops_arm_nd_sequence.c. */
+/* N-D indexed update and structural reorder wrappers live in
+ * llm_ops_arm_nd_sequence.c. */
 
 /* N-D norms, masks, and attention wrappers live in llm_ops_arm_nd_model.c. */
 
-/* INT8 quantization and parameter-backed inference wrappers live in llm_ops_arm_int8.c. */
+/* INT8 quantization and parameter-backed inference wrappers live in
+ * llm_ops_arm_int8.c. */
 
 #define REG(name, narg, fn)                                                    \
     do {                                                                       \
@@ -185,9 +193,9 @@ __declspec(dllexport)
 #elif defined(__GNUC__)
 __attribute__((visibility("default")))
 #endif
-int sqlite3_llm_ops_init(sqlite3 *db,
-                         char **pzErrMsg,
-                         const sqlite3_api_routines *pApi) {
+    int sqlite3_llm_ops_init(sqlite3 *db,
+                             char **pzErrMsg,
+                             const sqlite3_api_routines *pApi) {
     (void)pzErrMsg;
     SQLITE_EXTENSION_INIT2(pApi);
 
@@ -407,8 +415,8 @@ __declspec(dllexport)
 #elif defined(__GNUC__)
 __attribute__((visibility("default")))
 #endif
-int sqlite3_llmops_init(sqlite3 *db,
-                        char **pzErrMsg,
-                        const sqlite3_api_routines *pApi) {
+    int sqlite3_llmops_init(sqlite3 *db,
+                            char **pzErrMsg,
+                            const sqlite3_api_routines *pApi) {
     return sqlite3_llm_ops_init(db, pzErrMsg, pApi);
 }

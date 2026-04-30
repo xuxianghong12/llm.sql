@@ -48,11 +48,14 @@ void sql_triu_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 void sql_where_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tc, tx, ty;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tc) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tc) < 0)
         ERR(ctx, "llm_where_nd: invalid cond blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tx) < 0)
         ERR(ctx, "llm_where_nd: invalid x blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ty) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ty) < 0)
         ERR(ctx, "llm_where_nd: invalid y blob");
 
     int32_t xy_shape[LLM_MAX_NDIM];
@@ -131,14 +134,14 @@ void sql_where_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
 }
 
-void sql_masked_fill_nd(sqlite3_context *ctx,
-                        int argc,
-                        sqlite3_value **argv) {
+void sql_masked_fill_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx, tm;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_masked_fill_nd: invalid x blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tm) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tm) < 0)
         ERR(ctx, "llm_masked_fill_nd: invalid mask blob");
     float val = (float)sqlite3_value_double(argv[2]);
 
@@ -378,9 +381,11 @@ static void sql_binary_mask_nd(sqlite3_context *ctx,
                                const char *name,
                                int use_or) {
     TensorNDF32 ta, tb;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)
         ERR(ctx, name);
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tb) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tb) < 0)
         ERR(ctx, name);
     if (ta.total != tb.total)
         ERR(ctx, "tensor logic op: size mismatch");
@@ -472,9 +477,11 @@ void sql_pow_scalar_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 void sql_floor_div_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 ta, tb;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)
         ERR(ctx, "llm_floor_div_nd: invalid blob a");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tb) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tb) < 0)
         ERR(ctx, "llm_floor_div_nd: invalid blob b");
     if (ta.total != tb.total)
         ERR(ctx, "llm_floor_div_nd: size mismatch");
@@ -521,9 +528,11 @@ void sql_remainder_tensor_nd(sqlite3_context *ctx,
                              sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 ta, tb;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &ta) < 0)
         ERR(ctx, "llm_remainder_tensor_nd: invalid blob a");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tb) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tb) < 0)
         ERR(ctx, "llm_remainder_tensor_nd: invalid blob b");
     if (ta.total != tb.total)
         ERR(ctx, "llm_remainder_tensor_nd: size mismatch");

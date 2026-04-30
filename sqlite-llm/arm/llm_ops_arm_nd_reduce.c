@@ -201,9 +201,7 @@ void sql_max_dim_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
 }
 
-void sql_argmax_dim_nd(sqlite3_context *ctx,
-                       int argc,
-                       sqlite3_value **argv) {
+void sql_argmax_dim_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     const void *blob = sqlite3_value_blob(argv[0]);
     int sz = sqlite3_value_bytes(argv[0]);

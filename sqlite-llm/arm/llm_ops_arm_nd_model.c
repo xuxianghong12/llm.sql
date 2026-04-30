@@ -20,9 +20,11 @@ SQLITE_EXTENSION_INIT3
 void sql_layernorm_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx, tw;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_layernorm_nd: invalid x blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
         ERR(ctx, "llm_layernorm_nd: invalid weight blob");
     if (tw.ndim != 1)
         ERR(ctx, "llm_layernorm_nd: weight must be 1-D");
@@ -80,9 +82,11 @@ void sql_layernorm_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 void sql_embedding_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tw, ti;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tw) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tw) < 0)
         ERR(ctx, "llm_embedding_nd: invalid weight blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &ti) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &ti) < 0)
         ERR(ctx, "llm_embedding_nd: invalid indices blob");
     if (tw.ndim != 2)
         ERR(ctx, "llm_embedding_nd: weight must be 2-D");
@@ -121,9 +125,11 @@ void sql_embedding_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 void sql_rmsnorm_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx, tw;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_rmsnorm_nd: invalid x blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tw) < 0)
         ERR(ctx, "llm_rmsnorm_nd: invalid weight blob");
     if (tw.ndim != 1)
         ERR(ctx, "llm_rmsnorm_nd: weight must be 1-D");
@@ -223,10 +229,12 @@ void sql_norm_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
         for (int32_t inner_idx = 0; inner_idx < inner; inner_idx++) {
             double acc = 0.0;
             for (int32_t dim_idx = 0; dim_idx < dimsize; dim_idx++) {
-                float value = t.data[(outer_idx * dimsize + dim_idx) * inner + inner_idx];
+                float value =
+                    t.data[(outer_idx * dimsize + dim_idx) * inner + inner_idx];
                 acc += pow(fabs((double)value), (double)p);
             }
-            dst[outer_idx * inner + inner_idx] = (float)pow(acc, 1.0 / (double)p);
+            dst[outer_idx * inner + inner_idx] =
+                (float)pow(acc, 1.0 / (double)p);
         }
     }
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
@@ -264,11 +272,14 @@ void sql_sdpa_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     if (argc != 5 && argc != 6)
         ERR(ctx, "llm_sdpa_nd: need 5 or 6 arguments");
     TensorNDF32 tq, tk, tv;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tq) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tq) < 0)
         ERR(ctx, "llm_sdpa_nd: invalid Q blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tk) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tk) < 0)
         ERR(ctx, "llm_sdpa_nd: invalid K blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &tv) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &tv) < 0)
         ERR(ctx, "llm_sdpa_nd: invalid V blob");
     float scale = (float)sqlite3_value_double(argv[3]);
     int is_causal = sqlite3_value_int(argv[4]);

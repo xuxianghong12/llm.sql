@@ -1,13 +1,14 @@
 /*
- * llm_ops_arm_nd_sequence.c - N-D sequence, index, and structural reorder wrappers
+ * llm_ops_arm_nd_sequence.c - N-D sequence, index, and structural reorder
+ * wrappers
  *
  * This file owns N-D SQL wrappers that traverse tensor sequences along a
  * dimension: cumulative scans such as cumsum/cumprod and index-driven reads
- * such as gather/index_select. It also owns indexed updates and order-preserving
- * structural transforms like repeat, flatten, concatenate, and stack. Keep
- * these operators here when they are defined by ordered traversal, explicit
- * index tensors, or deterministic data rearrangement rather than by broadcast,
- * pointwise math, or full reductions.
+ * such as gather/index_select. It also owns indexed updates and
+ * order-preserving structural transforms like repeat, flatten, concatenate, and
+ * stack. Keep these operators here when they are defined by ordered traversal,
+ * explicit index tensors, or deterministic data rearrangement rather than by
+ * broadcast, pointwise math, or full reductions.
  *
  * Maintenance guidance:
  *   - Reuse nd_strides() and nd_result_alloc() for dimension-aware iteration.
@@ -51,7 +52,8 @@ void sql_cumsum_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
         for (int32_t inner_idx = 0; inner_idx < inner; inner_idx++) {
             double acc = 0.0;
             for (int32_t dim_idx = 0; dim_idx < dimsize; dim_idx++) {
-                int32_t idx = (outer_idx * dimsize + dim_idx) * inner + inner_idx;
+                int32_t idx =
+                    (outer_idx * dimsize + dim_idx) * inner + inner_idx;
                 acc += (double)t.data[idx];
                 dst[idx] = (float)acc;
             }
@@ -91,7 +93,8 @@ void sql_cumprod_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
         for (int32_t inner_idx = 0; inner_idx < inner; inner_idx++) {
             double acc = 1.0;
             for (int32_t dim_idx = 0; dim_idx < dimsize; dim_idx++) {
-                int32_t idx = (outer_idx * dimsize + dim_idx) * inner + inner_idx;
+                int32_t idx =
+                    (outer_idx * dimsize + dim_idx) * inner + inner_idx;
                 acc *= (double)t.data[idx];
                 dst[idx] = (float)acc;
             }
@@ -103,10 +106,12 @@ void sql_cumprod_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 void sql_gather_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx, ti;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_gather_nd: invalid x blob");
     int dim = sqlite3_value_int(argv[1]);
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ti) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ti) < 0)
         ERR(ctx, "llm_gather_nd: invalid index blob");
     if (dim < 0)
         dim += tx.ndim;
@@ -145,15 +150,15 @@ void sql_gather_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     sqlite3_result_blob(ctx, out, out_sz, sqlite3_free);
 }
 
-void sql_index_select_nd(sqlite3_context *ctx,
-                         int argc,
-                         sqlite3_value **argv) {
+void sql_index_select_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx, ti;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_index_select_nd: invalid x blob");
     int dim = sqlite3_value_int(argv[1]);
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ti) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ti) < 0)
         ERR(ctx, "llm_index_select_nd: invalid index blob");
     if (dim < 0)
         dim += tx.ndim;
@@ -200,10 +205,12 @@ void sql_index_select_nd(sqlite3_context *ctx,
 void sql_scatter_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 tx, ti;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_scatter_nd: invalid x blob");
     int dim = sqlite3_value_int(argv[1]);
-    if (llm_to_nd(sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ti) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[2]), sqlite3_value_bytes(argv[2]), &ti) < 0)
         ERR(ctx, "llm_scatter_nd: invalid index blob");
     float val = (float)sqlite3_value_double(argv[3]);
     if (dim < 0)
@@ -334,7 +341,8 @@ void sql_repeat_kv_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 
     for (int32_t batch_idx = 0; batch_idx < batch; batch_idx++) {
         for (int32_t head_idx = 0; head_idx < kv_heads; head_idx++) {
-            const float *src_head = t.data + (batch_idx * kv_heads + head_idx) * head_elems;
+            const float *src_head =
+                t.data + (batch_idx * kv_heads + head_idx) * head_elems;
             for (int repeat_idx = 0; repeat_idx < num_repeats; repeat_idx++) {
                 memcpy(dst, src_head, head_bytes);
                 dst += head_elems;
@@ -373,7 +381,9 @@ void sql_flip_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
 
     for (int32_t outer_idx = 0; outer_idx < outer; outer_idx++) {
         for (int32_t dim_idx = 0; dim_idx < dimsize; dim_idx++) {
-            const float *src = t.data + (outer_idx * dimsize + (dimsize - 1 - dim_idx)) * inner;
+            const float *src =
+                t.data +
+                (outer_idx * dimsize + (dimsize - 1 - dim_idx)) * inner;
             float *dst_ptr = dst + (outer_idx * dimsize + dim_idx) * inner;
             memcpy(dst_ptr, src, (size_t)inner * sizeof(float));
         }
@@ -465,8 +475,9 @@ void sql_repeat_interleave_nd(sqlite3_context *ctx,
         for (int32_t dim_idx = 0; dim_idx < dimsize; dim_idx++) {
             const float *src = t.data + (outer_idx * dimsize + dim_idx) * inner;
             for (int32_t repeat_idx = 0; repeat_idx < reps; repeat_idx++) {
-                float *dst_ptr =
-                    dst + (outer_idx * dimsize * reps + dim_idx * reps + repeat_idx) * inner;
+                float *dst_ptr = dst + (outer_idx * dimsize * reps +
+                                        dim_idx * reps + repeat_idx) *
+                                           inner;
                 memcpy(dst_ptr, src, (size_t)inner * sizeof(float));
             }
         }
@@ -478,9 +489,11 @@ void sql_index_put_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     if (argc < 4)
         ERR(ctx, "llm_index_put_nd: need x, values, accumulate, idx...");
     TensorNDF32 tx, tv;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &tx) < 0)
         ERR(ctx, "llm_index_put_nd: invalid x blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tv) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tv) < 0)
         ERR(ctx, "llm_index_put_nd: invalid values blob");
     int accumulate = sqlite3_value_int(argv[2]);
 
@@ -573,9 +586,11 @@ void sql_repeat_interleave_tensor_nd(sqlite3_context *ctx,
                                      sqlite3_value **argv) {
     (void)argc;
     TensorNDF32 t, tr;
-    if (llm_to_nd(sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &t) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[0]), sqlite3_value_bytes(argv[0]), &t) < 0)
         ERR(ctx, "llm_repeat_interleave_tensor_nd: invalid x blob");
-    if (llm_to_nd(sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tr) < 0)
+    if (llm_to_nd(
+            sqlite3_value_blob(argv[1]), sqlite3_value_bytes(argv[1]), &tr) < 0)
         ERR(ctx, "llm_repeat_interleave_tensor_nd: invalid repeats blob");
     int dim = sqlite3_value_int(argv[2]);
     if (dim < 0)
@@ -585,7 +600,8 @@ void sql_repeat_interleave_tensor_nd(sqlite3_context *ctx,
 
     int32_t dimsize = t.shape[dim];
     if (tr.total != dimsize)
-        ERR(ctx, "llm_repeat_interleave_tensor_nd: repeats length != shape[dim]");
+        ERR(ctx,
+            "llm_repeat_interleave_tensor_nd: repeats length != shape[dim]");
 
     int32_t out_dimsize = 0;
     for (int32_t i = 0; i < dimsize; i++)
@@ -620,7 +636,8 @@ void sql_repeat_interleave_tensor_nd(sqlite3_context *ctx,
             int32_t repeat_count = (int32_t)tr.data[dim_idx];
             const float *src = t.data + (outer_idx * dimsize + dim_idx) * inner;
             for (int32_t rep = 0; rep < repeat_count; rep++) {
-                float *dst_ptr = dst + (outer_idx * out_dimsize + dst_dim) * inner;
+                float *dst_ptr =
+                    dst + (outer_idx * out_dimsize + dst_dim) * inner;
                 memcpy(dst_ptr, src, (size_t)inner * sizeof(float));
                 dst_dim++;
             }
@@ -756,7 +773,8 @@ void sql_cat_multi_nd(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
         for (int i = 0; i < n_tensors; i++) {
             int32_t tensor_dim = ts[i].shape[dim];
             const float *src = ts[i].data + outer_idx * tensor_dim * inner;
-            float *dst_ptr = dst + (outer_idx * cat_dim_total + dst_dim) * inner;
+            float *dst_ptr =
+                dst + (outer_idx * cat_dim_total + dst_dim) * inner;
             memcpy(dst_ptr, src, (size_t)(tensor_dim * inner) * sizeof(float));
             dst_dim += tensor_dim;
         }

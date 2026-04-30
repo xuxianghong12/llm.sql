@@ -64,7 +64,10 @@ int main(int argc, char **argv) {
     }
 
     if (positional_count < 3 || positional_count > 4) {
-        fprintf(stderr, "usage: %s [--profile] <model_dir> <token_csv> <max_tokens> [db_filename]\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s [--profile] <model_dir> <token_csv> <max_tokens> "
+                "[db_filename]\n",
+                argv[0]);
         return 1;
     }
 
@@ -84,21 +87,22 @@ int main(int argc, char **argv) {
         profile_ptr = &profile;
     }
 
-    if (!llmsql_native_generate_tokens_profiled(
-            positionals[0],
-            db_filename,
-            NULL,
-            NULL,
-            extension_path,
-            num_threads,
-            prompt_ids,
-            prompt_len,
-            max_tokens,
-            &generation,
-            profile_ptr,
-            error,
-            sizeof(error))) {
-        fprintf(stderr, "%s\n", error[0] != '\0' ? error : "native graph runtime failed");
+    if (!llmsql_native_generate_tokens_profiled(positionals[0],
+                                                db_filename,
+                                                NULL,
+                                                NULL,
+                                                extension_path,
+                                                num_threads,
+                                                prompt_ids,
+                                                prompt_len,
+                                                max_tokens,
+                                                &generation,
+                                                profile_ptr,
+                                                error,
+                                                sizeof(error))) {
+        fprintf(stderr,
+                "%s\n",
+                error[0] != '\0' ? error : "native graph runtime failed");
         llmsql_native_free_profile(&profile);
         free(prompt_ids);
         return 1;

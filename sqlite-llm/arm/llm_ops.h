@@ -84,9 +84,8 @@ LLM_INLINE float llm_hminq_f32(float32x4_t v) {
 #endif
 }
 
-LLM_INLINE void llm_store_dequantize_i8x8(float *out,
-                                          const int8_t *src,
-                                          float scale) {
+LLM_INLINE void
+llm_store_dequantize_i8x8(float *out, const int8_t *src, float scale) {
     int8x8_t vi8 = vld1_s8(src);
     int16x8_t vi16 = vmovl_s8(vi8);
     int32x4_t lo = vmovl_s16(vget_low_s16(vi16));
@@ -96,7 +95,8 @@ LLM_INLINE void llm_store_dequantize_i8x8(float *out,
     vst1q_f32(out + 4, vmulq_f32(vcvtq_f32_s32(hi), vscale));
 }
 
-LLM_INLINE float llm_dot_i8f32_neon(const float *x, const int8_t *w, int32_t n) {
+LLM_INLINE float
+llm_dot_i8f32_neon(const float *x, const int8_t *w, int32_t n) {
     float32x4_t acc0 = vdupq_n_f32(0.0f);
     float32x4_t acc1 = vdupq_n_f32(0.0f);
     int32_t i = 0;
@@ -117,8 +117,8 @@ LLM_INLINE float llm_dot_i8f32_neon(const float *x, const int8_t *w, int32_t n) 
 
 /* ── Blob size calculations ─────────────────────────────────────────────────
  */
-#define LLM_VEC_BLOB_SIZE(n) (4 + (int)(n) * 4)
-#define LLM_MAT_BLOB_SIZE(r, c) (8 + (int)(r) * (int)(c) * 4)
+#define LLM_VEC_BLOB_SIZE(n) (4 + (int)(n)*4)
+#define LLM_MAT_BLOB_SIZE(r, c) (8 + (int)(r) * (int)(c)*4)
 
 /* ── N-D tensor constants ───────────────────────────────────────────────────
  */
@@ -130,7 +130,7 @@ LLM_INLINE float llm_dot_i8f32_neon(const float *x, const int8_t *w, int32_t n) 
 #define LLM_MAX_CAT_TENSORS 64 /* max tensors for cat_multi / stack         */
 
 /* N-D header size: 4 bytes magic + 4 bytes ndim + ndim * 4 bytes shape      */
-#define LLM_ND_HDR(ndim) (8 + (int)(ndim) * 4)
+#define LLM_ND_HDR(ndim) (8 + (int)(ndim)*4)
 
 /* ── INT8 quantized tensor constants ─────────────────────────────────────── */
 /*
@@ -148,7 +148,7 @@ LLM_INLINE float llm_dot_i8f32_neon(const float *x, const int8_t *w, int32_t n) 
 #define LLM_INT8_MAGIC ((int32_t)0x80000008)
 
 /* INT8 N-D header size: same as FP32 N-D header                             */
-#define LLM_INT8_HDR(ndim) (8 + (int)(ndim) * 4)
+#define LLM_INT8_HDR(ndim) (8 + (int)(ndim)*4)
 
 /* INT8 quantized tensor view (points into blob memory).                     */
 typedef struct {

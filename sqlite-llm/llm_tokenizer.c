@@ -99,8 +99,8 @@ static void init_byte_unicode_mapping(void) {
     }
     for (i = 0; i < total; ++i) {
         g_byte_to_unicode[bs[i]] = cs[i];
-        if (cs[i] < (int)(sizeof(g_unicode_to_byte) /
-                          sizeof(g_unicode_to_byte[0]))) {
+        if (cs[i] <
+            (int)(sizeof(g_unicode_to_byte) / sizeof(g_unicode_to_byte[0]))) {
             g_unicode_to_byte[cs[i]] = bs[i];
         }
     }
@@ -239,8 +239,7 @@ static uint32_t ht_hash(const char *s) {
 }
 
 static int ht_init(HashTable *ht, int cap) {
-    ht->entries =
-        (HTEntry *)calloc((size_t)cap, sizeof(HTEntry));
+    ht->entries = (HTEntry *)calloc((size_t)cap, sizeof(HTEntry));
     if (ht->entries == NULL) {
         return 0;
     }
@@ -271,9 +270,7 @@ static int ht_put(HashTable *ht, const char *key, int value) {
         }
         for (i = 0; i < ht->cap; ++i) {
             if (ht->entries[i].key != NULL) {
-                if (!ht_put(&newht,
-                            ht->entries[i].key,
-                            ht->entries[i].value)) {
+                if (!ht_put(&newht, ht->entries[i].key, ht->entries[i].value)) {
                     ht_free(&newht);
                     return 0;
                 }
@@ -299,11 +296,7 @@ static int ht_put(HashTable *ht, const char *key, int value) {
     return 1;
 }
 
-static int ht_get(
-    const HashTable *ht,
-    const char *key,
-    int *out
-) {
+static int ht_get(const HashTable *ht, const char *key, int *out) {
     uint32_t idx;
     if (ht->cap == 0) {
         return 0;
@@ -380,20 +373,14 @@ static char *read_file(const char *path, size_t *out_len) {
 /*  Load vocab from the SAME db connection                            */
 /* ================================================================== */
 
-static int load_vocab_from_conn(
-    sqlite3 *db,
-    Tokenizer *tok
-) {
+static int load_vocab_from_conn(sqlite3 *db, Tokenizer *tok) {
     sqlite3_stmt *stmt = NULL;
     int max_id = -1;
     int rc = 0;
 
     if (sqlite3_prepare_v2(
-            db,
-            "SELECT MAX(token_id) FROM vocab",
-            -1,
-            &stmt,
-            NULL) != SQLITE_OK) {
+            db, "SELECT MAX(token_id) FROM vocab", -1, &stmt, NULL) !=
+        SQLITE_OK) {
         return 0;
     }
     if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -407,33 +394,27 @@ static int load_vocab_from_conn(
     }
 
     tok->vocab_size = max_id + 1;
-    tok->id_to_token = (char **)calloc(
-        (size_t)tok->vocab_size, sizeof(char *));
-    tok->is_special = (int *)calloc(
-        (size_t)tok->vocab_size, sizeof(int));
-    if (tok->id_to_token == NULL ||
-        tok->is_special == NULL) {
+    tok->id_to_token = (char **)calloc((size_t)tok->vocab_size, sizeof(char *));
+    tok->is_special = (int *)calloc((size_t)tok->vocab_size, sizeof(int));
+    if (tok->id_to_token == NULL || tok->is_special == NULL) {
         return 0;
     }
     if (!ht_init(&tok->token_to_id, tok->vocab_size * 2)) {
         return 0;
     }
 
-    if (sqlite3_prepare_v2(
-            db,
-            "SELECT token_id, token, is_special FROM vocab",
-            -1,
-            &stmt,
-            NULL) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db,
+                           "SELECT token_id, token, is_special FROM vocab",
+                           -1,
+                           &stmt,
+                           NULL) != SQLITE_OK) {
         return 0;
     }
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int tid = sqlite3_column_int(stmt, 0);
-        const char *text =
-            (const char *)sqlite3_column_text(stmt, 1);
+        const char *text = (const char *)sqlite3_column_text(stmt, 1);
         int is_sp = sqlite3_column_int(stmt, 2);
-        if (tid < 0 || tid >= tok->vocab_size ||
-            text == NULL) {
+        if (tid < 0 || tid >= tok->vocab_size || text == NULL) {
             continue;
         }
         tok->id_to_token[tid] = llmsql_strdup(text);
@@ -457,10 +438,8 @@ typedef struct {
 
 static void json_skip_ws(JsonCur *c) {
     while (c->pos < c->len &&
-           (c->data[c->pos] == ' ' ||
-            c->data[c->pos] == '\t' ||
-            c->data[c->pos] == '\n' ||
-            c->data[c->pos] == '\r')) {
+           (c->data[c->pos] == ' ' || c->data[c->pos] == '\t' ||
+            c->data[c->pos] == '\n' || c->data[c->pos] == '\r')) {
         ++c->pos;
     }
 }
@@ -542,8 +521,7 @@ static char *json_parse_string(JsonCur *c) {
                 }
                 if (cp >= 0xD800 && cp <= 0xDBFF) {
                     unsigned int lo = 0;
-                    if (c->pos + 1 < c->len &&
-                        c->data[c->pos] == '\\' &&
+                    if (c->pos + 1 < c->len && c->data[c->pos] == '\\' &&
                         c->data[c->pos + 1] == 'u') {
                         c->pos += 2;
                         for (i = 0; i < 4; ++i) {
@@ -551,15 +529,12 @@ static char *json_parse_string(JsonCur *c) {
                             if (c->pos >= c->len) {
                                 goto fail;
                             }
-                            d = (unsigned char)
-                                c->data[c->pos];
+                            d = (unsigned char)c->data[c->pos];
                             if (d >= '0' && d <= '9') {
                                 d -= '0';
-                            } else if (d >= 'a' &&
-                                       d <= 'f') {
+                            } else if (d >= 'a' && d <= 'f') {
                                 d = d - 'a' + 10;
-                            } else if (d >= 'A' &&
-                                       d <= 'F') {
+                            } else if (d >= 'A' && d <= 'F') {
                                 d = d - 'A' + 10;
                             } else {
                                 goto fail;
@@ -567,22 +542,18 @@ static char *json_parse_string(JsonCur *c) {
                             lo = (lo << 4) | d;
                             ++c->pos;
                         }
-                        cp = 0x10000 +
-                             ((cp - 0xD800) << 10) +
-                             (lo - 0xDC00);
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
                     }
                 }
                 {
                     char u8[4];
                     int nn = encode_utf8((int)cp, u8);
-                    dynbuf_push(
-                        &buf, u8, (size_t)nn);
+                    dynbuf_push(&buf, u8, (size_t)nn);
                 }
                 continue;
             }
             default:
-                dynbuf_push_byte(
-                    &buf, c->data[c->pos]);
+                dynbuf_push_byte(&buf, c->data[c->pos]);
                 break;
             }
             ++c->pos;
@@ -656,9 +627,8 @@ static int json_skip_value(JsonCur *c) {
     }
     while (c->pos < c->len) {
         char cc = c->data[c->pos];
-        if (cc == ',' || cc == '}' || cc == ']' ||
-            cc == ' ' || cc == '\t' || cc == '\n' ||
-            cc == '\r') {
+        if (cc == ',' || cc == '}' || cc == ']' || cc == ' ' || cc == '\t' ||
+            cc == '\n' || cc == '\r') {
             break;
         }
         ++c->pos;
@@ -703,10 +673,7 @@ static int json_find_key(JsonCur *c, const char *key) {
 /*  Parse vocab + merges from tokenizer.json                          */
 /* ================================================================== */
 
-static int parse_vocab_object(
-    JsonCur *c,
-    HashTable *token_to_id
-) {
+static int parse_vocab_object(JsonCur *c, HashTable *token_to_id) {
     if (!json_consume(c, '{')) {
         return 0;
     }
@@ -728,16 +695,13 @@ static int parse_vocab_object(
         value = 0;
         {
             int neg = 0;
-            if (c->pos < c->len &&
-                c->data[c->pos] == '-') {
+            if (c->pos < c->len && c->data[c->pos] == '-') {
                 neg = 1;
                 ++c->pos;
             }
-            while (c->pos < c->len &&
-                   c->data[c->pos] >= '0' &&
+            while (c->pos < c->len && c->data[c->pos] >= '0' &&
                    c->data[c->pos] <= '9') {
-                value = value * 10 +
-                        (c->data[c->pos] - '0');
+                value = value * 10 + (c->data[c->pos] - '0');
                 ++c->pos;
             }
             if (neg) {
@@ -756,11 +720,8 @@ static int parse_vocab_object(
     }
 }
 
-static int parse_merges_array(
-    JsonCur *c,
-    HashTable *merge_rank,
-    int *out_count
-) {
+static int
+parse_merges_array(JsonCur *c, HashTable *merge_rank, int *out_count) {
     int rank = 0;
     if (!json_consume(c, '[')) {
         return 0;
@@ -784,14 +745,11 @@ static int parse_merges_array(
             {
                 size_t alen = strlen(merge_str);
                 size_t blen = strlen(space + 1);
-                char *pair_key = (char *)malloc(
-                    alen + 1 + blen + 1);
+                char *pair_key = (char *)malloc(alen + 1 + blen + 1);
                 if (pair_key != NULL) {
                     memcpy(pair_key, merge_str, alen);
                     pair_key[alen] = '\t';
-                    memcpy(pair_key + alen + 1,
-                           space + 1,
-                           blen + 1);
+                    memcpy(pair_key + alen + 1, space + 1, blen + 1);
                     ht_put(merge_rank, pair_key, rank);
                     free(pair_key);
                 }
@@ -811,10 +769,7 @@ static int parse_merges_array(
     return 1;
 }
 
-static int load_merges_from_json(
-    const char *json_path,
-    Tokenizer *tok
-) {
+static int load_merges_from_json(const char *json_path, Tokenizer *tok) {
     size_t flen = 0;
     char *data = read_file(json_path, &flen);
     JsonCur cursor;
@@ -840,38 +795,21 @@ static int load_merges_from_json(
             if (json_find_key(&mc, "vocab")) {
                 HashTable json_vocab;
                 if (ht_init(&json_vocab, 1024)) {
-                    parse_vocab_object(
-                        &mc, &json_vocab);
-                    for (int i = 0;
-                         i < json_vocab.cap;
-                         ++i) {
-                        if (json_vocab.entries[i].key !=
-                            NULL) {
+                    parse_vocab_object(&mc, &json_vocab);
+                    for (int i = 0; i < json_vocab.cap; ++i) {
+                        if (json_vocab.entries[i].key != NULL) {
                             int dummy;
-                            if (!ht_get(
-                                    &tok->token_to_id,
-                                    json_vocab.entries[i]
-                                        .key,
-                                    &dummy)) {
-                                int tid =
-                                    json_vocab.entries[i]
-                                        .value;
-                                ht_put(
-                                    &tok->token_to_id,
-                                    json_vocab.entries[i]
-                                        .key,
-                                    tid);
-                                if (tid >= 0 &&
-                                    tid <
-                                        tok->vocab_size &&
-                                    tok->id_to_token
-                                            [tid] ==
-                                        NULL) {
-                                    tok->id_to_token
-                                        [tid] = llmsql_strdup(
-                                        json_vocab
-                                            .entries[i]
-                                            .key);
+                            if (!ht_get(&tok->token_to_id,
+                                        json_vocab.entries[i].key,
+                                        &dummy)) {
+                                int tid = json_vocab.entries[i].value;
+                                ht_put(&tok->token_to_id,
+                                       json_vocab.entries[i].key,
+                                       tid);
+                                if (tid >= 0 && tid < tok->vocab_size &&
+                                    tok->id_to_token[tid] == NULL) {
+                                    tok->id_to_token[tid] = llmsql_strdup(
+                                        json_vocab.entries[i].key);
                                 }
                             }
                         }
@@ -888,9 +826,7 @@ static int load_merges_from_json(
         if (json_find_key(&mc, "model")) {
             if (json_find_key(&mc, "merges")) {
                 rc = parse_merges_array(
-                    &mc,
-                    &tok->merge_rank,
-                    &tok->merge_count);
+                    &mc, &tok->merge_rank, &tok->merge_count);
             }
         }
     }
@@ -904,8 +840,7 @@ static int load_merges_from_json(
 /* ================================================================== */
 
 static Tokenizer *tokenizer_create(void) {
-    Tokenizer *tok =
-        (Tokenizer *)calloc(1, sizeof(Tokenizer));
+    Tokenizer *tok = (Tokenizer *)calloc(1, sizeof(Tokenizer));
     return tok;
 }
 
@@ -932,8 +867,7 @@ static void tokenizer_free(Tokenizer *tok) {
 
 static int is_letter(const char *p, int *bytes) {
     unsigned char c = (unsigned char)*p;
-    if ((c >= 'A' && c <= 'Z') ||
-        (c >= 'a' && c <= 'z')) {
+    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
         *bytes = 1;
         return 1;
     }
@@ -957,8 +891,8 @@ static int is_digit_char(char c) {
 }
 
 static int is_space_char(char c) {
-    return c == ' ' || c == '\t' || c == '\n' ||
-           c == '\r' || c == '\f' || c == '\v';
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+           c == '\v';
 }
 
 typedef struct {
@@ -972,16 +906,10 @@ typedef struct {
     int cap;
 } SpanList;
 
-static int span_push(
-    SpanList *sl,
-    const char *start,
-    int len
-) {
+static int span_push(SpanList *sl, const char *start, int len) {
     if (sl->count >= sl->cap) {
         int newcap = sl->cap == 0 ? 64 : sl->cap * 2;
-        Span *tmp = (Span *)realloc(
-            sl->items,
-            (size_t)newcap * sizeof(Span));
+        Span *tmp = (Span *)realloc(sl->items, (size_t)newcap * sizeof(Span));
         if (tmp == NULL) {
             return 0;
         }
@@ -994,10 +922,7 @@ static int span_push(
     return 1;
 }
 
-static void pretokenize(
-    const char *text,
-    SpanList *out
-) {
+static void pretokenize(const char *text, SpanList *out) {
     const char *p = text;
     out->items = NULL;
     out->count = 0;
@@ -1010,14 +935,12 @@ static void pretokenize(
             const char *start = p;
             int lb = 0;
 
-            if (*p != '\0' && !is_digit_char(*p) &&
-                !is_letter(p, &lb) && *p != '\r' &&
-                *p != '\n') {
+            if (*p != '\0' && !is_digit_char(*p) && !is_letter(p, &lb) &&
+                *p != '\r' && *p != '\n') {
                 const char *next = p;
                 if ((unsigned char)*next >= 0xC0) {
                     int n = 1;
-                    unsigned char c =
-                        (unsigned char)*next;
+                    unsigned char c = (unsigned char)*next;
                     if ((c & 0xE0) == 0xC0) {
                         n = 2;
                     } else if ((c & 0xF0) == 0xE0) {
@@ -1036,12 +959,10 @@ static void pretokenize(
 
             if (is_letter(p, &lb)) {
                 p += lb;
-                while (*p != '\0' &&
-                       is_letter(p, &lb)) {
+                while (*p != '\0' && is_letter(p, &lb)) {
                     p += lb;
                 }
-                span_push(
-                    out, start, (int)(p - start));
+                span_push(out, start, (int)(p - start));
                 continue;
             }
             p = start;
@@ -1050,8 +971,7 @@ static void pretokenize(
         if (is_digit_char(*p)) {
             const char *start = p;
             int cnt = 0;
-            while (*p != '\0' && is_digit_char(*p) &&
-                   cnt < 3) {
+            while (*p != '\0' && is_digit_char(*p) && cnt < 3) {
                 ++p;
                 ++cnt;
             }
@@ -1068,12 +988,9 @@ static void pretokenize(
             continue;
         }
 
-        if (!is_letter(p, &bytes) && !is_digit_char(*p) &&
-            !is_space_char(*p)) {
+        if (!is_letter(p, &bytes) && !is_digit_char(*p) && !is_space_char(*p)) {
             const char *start = p;
-            while (*p != '\0' &&
-                   !is_letter(p, &bytes) &&
-                   !is_digit_char(*p) &&
+            while (*p != '\0' && !is_letter(p, &bytes) && !is_digit_char(*p) &&
                    !is_space_char(*p)) {
                 ++p;
             }
@@ -1102,24 +1019,18 @@ static void toklist_init(TokenList *tl) {
     tl->cap = 0;
 }
 
-static int toklist_push(
-    TokenList *tl,
-    const char *s,
-    int len
-) {
+static int toklist_push(TokenList *tl, const char *s, int len) {
     if (tl->count >= tl->cap) {
         int newcap = tl->cap == 0 ? 32 : tl->cap * 2;
-        char **tmp = (char **)realloc(
-            tl->tokens,
-            (size_t)newcap * sizeof(char *));
+        char **tmp =
+            (char **)realloc(tl->tokens, (size_t)newcap * sizeof(char *));
         if (tmp == NULL) {
             return 0;
         }
         tl->tokens = tmp;
         tl->cap = newcap;
     }
-    tl->tokens[tl->count] =
-        (char *)malloc((size_t)len + 1);
+    tl->tokens[tl->count] = (char *)malloc((size_t)len + 1);
     if (tl->tokens[tl->count] == NULL) {
         return 0;
     }
@@ -1140,11 +1051,8 @@ static void toklist_free(TokenList *tl) {
     tl->cap = 0;
 }
 
-static int bytes_to_initial_tokens(
-    const char *raw,
-    int rawlen,
-    TokenList *out
-) {
+static int
+bytes_to_initial_tokens(const char *raw, int rawlen, TokenList *out) {
     int i;
     toklist_init(out);
     for (i = 0; i < rawlen; ++i) {
@@ -1160,15 +1068,11 @@ static int bytes_to_initial_tokens(
     return 1;
 }
 
-static int get_merge_rank(
-    const HashTable *merge_rank,
-    const char *a,
-    const char *b
-) {
+static int
+get_merge_rank(const HashTable *merge_rank, const char *a, const char *b) {
     size_t alen = strlen(a);
     size_t blen = strlen(b);
-    char *key =
-        (char *)malloc(alen + 1 + blen + 1);
+    char *key = (char *)malloc(alen + 1 + blen + 1);
     int rank = -1;
     if (key == NULL) {
         return -1;
@@ -1183,10 +1087,7 @@ static int get_merge_rank(
     return rank;
 }
 
-static void apply_bpe_merges(
-    TokenList *tl,
-    const HashTable *merge_rank
-) {
+static void apply_bpe_merges(TokenList *tl, const HashTable *merge_rank) {
     for (;;) {
         int best_rank = -1;
         int best_idx = -1;
@@ -1196,12 +1097,9 @@ static void apply_bpe_merges(
             break;
         }
         for (i = 0; i < tl->count - 1; ++i) {
-            int r = get_merge_rank(
-                merge_rank,
-                tl->tokens[i],
-                tl->tokens[i + 1]);
-            if (r >= 0 &&
-                (best_rank < 0 || r < best_rank)) {
+            int r =
+                get_merge_rank(merge_rank, tl->tokens[i], tl->tokens[i + 1]);
+            if (r >= 0 && (best_rank < 0 || r < best_rank)) {
                 best_rank = r;
                 best_idx = i;
             }
@@ -1210,27 +1108,18 @@ static void apply_bpe_merges(
             break;
         }
         {
-            size_t alen =
-                strlen(tl->tokens[best_idx]);
-            size_t blen =
-                strlen(tl->tokens[best_idx + 1]);
-            char *merged =
-                (char *)malloc(alen + blen + 1);
+            size_t alen = strlen(tl->tokens[best_idx]);
+            size_t blen = strlen(tl->tokens[best_idx + 1]);
+            char *merged = (char *)malloc(alen + blen + 1);
             if (merged == NULL) {
                 break;
             }
-            memcpy(merged,
-                   tl->tokens[best_idx],
-                   alen);
-            memcpy(merged + alen,
-                   tl->tokens[best_idx + 1],
-                   blen + 1);
+            memcpy(merged, tl->tokens[best_idx], alen);
+            memcpy(merged + alen, tl->tokens[best_idx + 1], blen + 1);
             free(tl->tokens[best_idx]);
             free(tl->tokens[best_idx + 1]);
             tl->tokens[best_idx] = merged;
-            for (i = best_idx + 1;
-                 i < tl->count - 1;
-                 ++i) {
+            for (i = best_idx + 1; i < tl->count - 1; ++i) {
                 tl->tokens[i] = tl->tokens[i + 1];
             }
             --tl->count;
@@ -1242,12 +1131,10 @@ static void apply_bpe_merges(
 /*  Encode: text -> BLOB of int32 token IDs                           */
 /* ================================================================== */
 
-static int tokenizer_encode(
-    const Tokenizer *tok,
-    const char *text,
-    int32_t **out_ids,
-    int *out_count
-) {
+static int tokenizer_encode(const Tokenizer *tok,
+                            const char *text,
+                            int32_t **out_ids,
+                            int *out_count) {
     SpanList spans;
     int32_t *ids = NULL;
     int id_count = 0;
@@ -1264,9 +1151,7 @@ static int tokenizer_encode(
         int ti;
 
         if (!bytes_to_initial_tokens(
-                spans.items[si].start,
-                spans.items[si].len,
-                &tl)) {
+                spans.items[si].start, spans.items[si].len, &tl)) {
             free(spans.items);
             free(ids);
             return 0;
@@ -1275,17 +1160,11 @@ static int tokenizer_encode(
 
         for (ti = 0; ti < tl.count; ++ti) {
             int tid;
-            if (ht_get(&tok->token_to_id,
-                        tl.tokens[ti],
-                        &tid)) {
+            if (ht_get(&tok->token_to_id, tl.tokens[ti], &tid)) {
                 if (id_count >= id_cap) {
-                    int newcap = id_cap == 0
-                                     ? 64
-                                     : id_cap * 2;
+                    int newcap = id_cap == 0 ? 64 : id_cap * 2;
                     int32_t *tmp = (int32_t *)realloc(
-                        ids,
-                        (size_t)newcap *
-                            sizeof(int32_t));
+                        ids, (size_t)newcap * sizeof(int32_t));
                     if (tmp == NULL) {
                         toklist_free(&tl);
                         free(spans.items);
@@ -1310,10 +1189,7 @@ static int tokenizer_encode(
 /*  Decode: token IDs -> UTF-8 text                                   */
 /* ================================================================== */
 
-static int token_text_to_bytes(
-    const char *text,
-    DynBuf *out
-) {
+static int token_text_to_bytes(const char *text, DynBuf *out) {
     const char *p = text;
     while (*p != '\0') {
         int cp = decode_utf8(&p);
@@ -1323,8 +1199,7 @@ static int token_text_to_bytes(
         if (cp < (int)(sizeof(g_unicode_to_byte) /
                        sizeof(g_unicode_to_byte[0])) &&
             g_unicode_to_byte[cp] >= 0) {
-            dynbuf_push_byte(
-                out, (char)g_unicode_to_byte[cp]);
+            dynbuf_push_byte(out, (char)g_unicode_to_byte[cp]);
         } else {
             char buf[4];
             int n = encode_utf8(cp, buf);
@@ -1334,12 +1209,10 @@ static int token_text_to_bytes(
     return 1;
 }
 
-static int tokenizer_decode(
-    const Tokenizer *tok,
-    const int32_t *ids,
-    int count,
-    char **out_text
-) {
+static int tokenizer_decode(const Tokenizer *tok,
+                            const int32_t *ids,
+                            int count,
+                            char **out_text) {
     DynBuf buf;
     int i;
 
@@ -1374,11 +1247,8 @@ static int tokenizer_decode(
 /*  Returns BLOB of little-endian int32 token IDs.                    */
 /* ================================================================== */
 
-static void sql_llm_tokenize(
-    sqlite3_context *ctx,
-    int argc,
-    sqlite3_value **argv
-) {
+static void
+sql_llm_tokenize(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     const char *text;
     const char *json_path;
     sqlite3 *db;
@@ -1387,21 +1257,18 @@ static void sql_llm_tokenize(
     int count = 0;
 
     if (argc != 2) {
-        sqlite3_result_error(
-            ctx,
-            "llm_tokenize requires 2 arguments: "
-            "text, tokenizer_json_path",
-            -1);
+        sqlite3_result_error(ctx,
+                             "llm_tokenize requires 2 arguments: "
+                             "text, tokenizer_json_path",
+                             -1);
         return;
     }
 
     text = (const char *)sqlite3_value_text(argv[0]);
-    json_path =
-        (const char *)sqlite3_value_text(argv[1]);
+    json_path = (const char *)sqlite3_value_text(argv[1]);
 
     if (text == NULL || json_path == NULL) {
-        sqlite3_result_error(
-            ctx, "NULL argument", -1);
+        sqlite3_result_error(ctx, "NULL argument", -1);
         return;
     }
 
@@ -1416,30 +1283,20 @@ static void sql_llm_tokenize(
 
     if (!load_vocab_from_conn(db, tok)) {
         tokenizer_free(tok);
-        sqlite3_result_error(
-            ctx,
-            "failed to load vocab table",
-            -1);
+        sqlite3_result_error(ctx, "failed to load vocab table", -1);
         return;
     }
 
     load_merges_from_json(json_path, tok);
 
-    if (!tokenizer_encode(
-            tok, text, &ids, &count)) {
+    if (!tokenizer_encode(tok, text, &ids, &count)) {
         tokenizer_free(tok);
-        sqlite3_result_error(
-            ctx,
-            "tokenizer encode failed",
-            -1);
+        sqlite3_result_error(ctx, "tokenizer encode failed", -1);
         return;
     }
 
     sqlite3_result_blob(
-        ctx,
-        ids,
-        count * (int)sizeof(int32_t),
-        SQLITE_TRANSIENT);
+        ctx, ids, count * (int)sizeof(int32_t), SQLITE_TRANSIENT);
     free(ids);
     tokenizer_free(tok);
 }
@@ -1452,11 +1309,8 @@ static void sql_llm_tokenize(
 /*  Returns decoded UTF-8 TEXT.                                       */
 /* ================================================================== */
 
-static void sql_llm_detokenize(
-    sqlite3_context *ctx,
-    int argc,
-    sqlite3_value **argv
-) {
+static void
+sql_llm_detokenize(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     const void *blob;
     int blob_bytes;
     int count;
@@ -1465,19 +1319,15 @@ static void sql_llm_detokenize(
     char *out_text = NULL;
 
     if (argc != 1) {
-        sqlite3_result_error(
-            ctx,
-            "llm_detokenize requires 1 argument: "
-            "token_ids_blob",
-            -1);
+        sqlite3_result_error(ctx,
+                             "llm_detokenize requires 1 argument: "
+                             "token_ids_blob",
+                             -1);
         return;
     }
 
     if (sqlite3_value_type(argv[0]) != SQLITE_BLOB) {
-        sqlite3_result_error(
-            ctx,
-            "llm_detokenize: argument must be BLOB",
-            -1);
+        sqlite3_result_error(ctx, "llm_detokenize: argument must be BLOB", -1);
         return;
     }
 
@@ -1485,11 +1335,10 @@ static void sql_llm_detokenize(
     blob_bytes = sqlite3_value_bytes(argv[0]);
 
     if (blob_bytes % (int)sizeof(int32_t) != 0) {
-        sqlite3_result_error(
-            ctx,
-            "llm_detokenize: BLOB size must be "
-            "multiple of 4",
-            -1);
+        sqlite3_result_error(ctx,
+                             "llm_detokenize: BLOB size must be "
+                             "multiple of 4",
+                             -1);
         return;
     }
 
@@ -1506,28 +1355,17 @@ static void sql_llm_detokenize(
 
     if (!load_vocab_from_conn(db, tok)) {
         tokenizer_free(tok);
-        sqlite3_result_error(
-            ctx,
-            "failed to load vocab table",
-            -1);
+        sqlite3_result_error(ctx, "failed to load vocab table", -1);
         return;
     }
 
-    if (!tokenizer_decode(
-            tok,
-            (const int32_t *)blob,
-            count,
-            &out_text)) {
+    if (!tokenizer_decode(tok, (const int32_t *)blob, count, &out_text)) {
         tokenizer_free(tok);
-        sqlite3_result_error(
-            ctx,
-            "tokenizer decode failed",
-            -1);
+        sqlite3_result_error(ctx, "tokenizer decode failed", -1);
         return;
     }
 
-    sqlite3_result_text(
-        ctx, out_text, -1, SQLITE_TRANSIENT);
+    sqlite3_result_text(ctx, out_text, -1, SQLITE_TRANSIENT);
     free(out_text);
     tokenizer_free(tok);
 }
@@ -1538,32 +1376,22 @@ static void sql_llm_detokenize(
 /*  Returns the number of tokens in a BLOB.                           */
 /* ================================================================== */
 
-static void sql_llm_token_count(
-    sqlite3_context *ctx,
-    int argc,
-    sqlite3_value **argv
-) {
+static void
+sql_llm_token_count(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     int blob_bytes;
 
     if (argc != 1) {
-        sqlite3_result_error(
-            ctx,
-            "llm_token_count requires 1 argument",
-            -1);
+        sqlite3_result_error(ctx, "llm_token_count requires 1 argument", -1);
         return;
     }
 
     if (sqlite3_value_type(argv[0]) != SQLITE_BLOB) {
-        sqlite3_result_error(
-            ctx,
-            "llm_token_count: argument must be BLOB",
-            -1);
+        sqlite3_result_error(ctx, "llm_token_count: argument must be BLOB", -1);
         return;
     }
 
     blob_bytes = sqlite3_value_bytes(argv[0]);
-    sqlite3_result_int(
-        ctx, blob_bytes / (int)sizeof(int32_t));
+    sqlite3_result_int(ctx, blob_bytes / (int)sizeof(int32_t));
 }
 
 /* ================================================================== */
@@ -1572,29 +1400,24 @@ static void sql_llm_token_count(
 /*  Returns the token ID at position *index* (0-based).               */
 /* ================================================================== */
 
-static void sql_llm_token_at(
-    sqlite3_context *ctx,
-    int argc,
-    sqlite3_value **argv
-) {
+static void
+sql_llm_token_at(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
     const int32_t *ids;
     int blob_bytes, count, idx;
 
     if (argc != 2) {
-        sqlite3_result_error(
-            ctx,
-            "llm_token_at requires 2 arguments: "
-            "blob, index",
-            -1);
+        sqlite3_result_error(ctx,
+                             "llm_token_at requires 2 arguments: "
+                             "blob, index",
+                             -1);
         return;
     }
 
     if (sqlite3_value_type(argv[0]) != SQLITE_BLOB) {
-        sqlite3_result_error(
-            ctx,
-            "llm_token_at: first argument must be "
-            "BLOB",
-            -1);
+        sqlite3_result_error(ctx,
+                             "llm_token_at: first argument must be "
+                             "BLOB",
+                             -1);
         return;
     }
 
@@ -1620,63 +1443,57 @@ __declspec(dllexport)
 #elif defined(__GNUC__)
 __attribute__((visibility("default")))
 #endif
-int sqlite3_llm_tokenizer_init(
-    sqlite3 *db,
-    char **pzErrMsg,
-    const sqlite3_api_routines *pApi
-) {
+    int sqlite3_llm_tokenizer_init(sqlite3 *db,
+                                   char **pzErrMsg,
+                                   const sqlite3_api_routines *pApi) {
     int rc;
     (void)pzErrMsg;
     SQLITE_EXTENSION_INIT2(pApi);
 
-    rc = sqlite3_create_function(
-        db,
-        "llm_tokenize",
-        2,
-        SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-        NULL,
-        sql_llm_tokenize,
-        NULL,
-        NULL);
+    rc = sqlite3_create_function(db,
+                                 "llm_tokenize",
+                                 2,
+                                 SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+                                 NULL,
+                                 sql_llm_tokenize,
+                                 NULL,
+                                 NULL);
     if (rc != SQLITE_OK) {
         return rc;
     }
 
-    rc = sqlite3_create_function(
-        db,
-        "llm_detokenize",
-        1,
-        SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-        NULL,
-        sql_llm_detokenize,
-        NULL,
-        NULL);
+    rc = sqlite3_create_function(db,
+                                 "llm_detokenize",
+                                 1,
+                                 SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+                                 NULL,
+                                 sql_llm_detokenize,
+                                 NULL,
+                                 NULL);
     if (rc != SQLITE_OK) {
         return rc;
     }
 
-    rc = sqlite3_create_function(
-        db,
-        "llm_token_count",
-        1,
-        SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-        NULL,
-        sql_llm_token_count,
-        NULL,
-        NULL);
+    rc = sqlite3_create_function(db,
+                                 "llm_token_count",
+                                 1,
+                                 SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+                                 NULL,
+                                 sql_llm_token_count,
+                                 NULL,
+                                 NULL);
     if (rc != SQLITE_OK) {
         return rc;
     }
 
-    rc = sqlite3_create_function(
-        db,
-        "llm_token_at",
-        2,
-        SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-        NULL,
-        sql_llm_token_at,
-        NULL,
-        NULL);
+    rc = sqlite3_create_function(db,
+                                 "llm_token_at",
+                                 2,
+                                 SQLITE_UTF8 | SQLITE_DETERMINISTIC,
+                                 NULL,
+                                 sql_llm_token_at,
+                                 NULL,
+                                 NULL);
     if (rc != SQLITE_OK) {
         return rc;
     }
@@ -1696,11 +1513,8 @@ __declspec(dllexport)
 #elif defined(__GNUC__)
 __attribute__((visibility("default")))
 #endif
-int sqlite3_llmtokenizer_init(
-    sqlite3 *db,
-    char **pzErrMsg,
-    const sqlite3_api_routines *pApi
-) {
-    return sqlite3_llm_tokenizer_init(
-        db, pzErrMsg, pApi);
+    int sqlite3_llmtokenizer_init(sqlite3 *db,
+                                  char **pzErrMsg,
+                                  const sqlite3_api_routines *pApi) {
+    return sqlite3_llm_tokenizer_init(db, pzErrMsg, pApi);
 }

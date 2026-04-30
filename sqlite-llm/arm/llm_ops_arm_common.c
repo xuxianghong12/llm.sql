@@ -81,10 +81,8 @@ void nd_strides(const int32_t *shape, int ndim, int32_t *strides) {
         strides[i] = strides[i + 1] * shape[i + 1];
 }
 
-void *nd_result_alloc(int ndim,
-                      const int32_t *shape,
-                      int32_t total,
-                      int *sz_out) {
+void *
+nd_result_alloc(int ndim, const int32_t *shape, int32_t total, int *sz_out) {
     int hdr = LLM_ND_HDR(ndim);
     int sz = hdr + total * (int)sizeof(float);
     char *blob = (char *)sqlite3_malloc(sz);

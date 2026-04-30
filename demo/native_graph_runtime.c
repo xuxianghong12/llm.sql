@@ -117,7 +117,8 @@ typedef struct {
     llmsql_profile *profile;
 } ExecProfileContext;
 
-static void set_error(char *error_buf, size_t error_buf_size, const char *fmt, ...);
+static void
+set_error(char *error_buf, size_t error_buf_size, const char *fmt, ...);
 
 static char *join_path(const char *dir, const char *file) {
     size_t len = strlen(dir) + strlen(file) + 2;
@@ -150,7 +151,8 @@ static double current_rss_mb(void) {
     if (fscanf(fp, "%lu %lu", &total_pages, &resident_pages) == 2) {
         page_size = sysconf(_SC_PAGESIZE);
         if (page_size > 0) {
-            rss_mb = ((double)resident_pages * (double)page_size) / (1024.0 * 1024.0);
+            rss_mb = ((double)resident_pages * (double)page_size) /
+                     (1024.0 * 1024.0);
         }
     }
     fclose(fp);
@@ -206,15 +208,14 @@ static int compare_profile_op_timings_desc(const void *lhs, const void *rhs) {
 }
 
 static void sort_profile_op_timings(llmsql_profile *profile) {
-    if (profile == NULL || profile->op_timing_count <= 1 || profile->op_timings == NULL) {
+    if (profile == NULL || profile->op_timing_count <= 1 ||
+        profile->op_timings == NULL) {
         return;
     }
-    qsort(
-        profile->op_timings,
-        (size_t)profile->op_timing_count,
-        sizeof(profile->op_timings[0]),
-        compare_profile_op_timings_desc
-    );
+    qsort(profile->op_timings,
+          (size_t)profile->op_timing_count,
+          sizeof(profile->op_timings[0]),
+          compare_profile_op_timings_desc);
 }
 
 static const char *profile_instr_name(const NativeInstr *instr) {
@@ -230,13 +231,11 @@ static const char *profile_instr_name(const NativeInstr *instr) {
     return "sql";
 }
 
-static int profile_add_op_timing(
-    llmsql_profile *profile,
-    const NativeInstr *instr,
-    double elapsed_us,
-    char *error_buf,
-    size_t error_buf_size
-) {
+static int profile_add_op_timing(llmsql_profile *profile,
+                                 const NativeInstr *instr,
+                                 double elapsed_us,
+                                 char *error_buf,
+                                 size_t error_buf_size) {
     const char *name;
     llmsql_profile_op_timing *next_entries;
     int i;
@@ -252,20 +251,20 @@ static int profile_add_op_timing(
     }
     next_entries = (llmsql_profile_op_timing *)realloc(
         profile->op_timings,
-        (size_t)(profile->op_timing_count + 1) * sizeof(*profile->op_timings)
-    );
+        (size_t)(profile->op_timing_count + 1) * sizeof(*profile->op_timings));
     if (next_entries == NULL) {
-        set_error(error_buf, error_buf_size, "out of memory recording op timings");
+        set_error(
+            error_buf, error_buf_size, "out of memory recording op timings");
         return 0;
     }
     profile->op_timings = next_entries;
-    memset(&profile->op_timings[profile->op_timing_count], 0, sizeof(profile->op_timings[profile->op_timing_count]));
-    snprintf(
-        profile->op_timings[profile->op_timing_count].name,
-        sizeof(profile->op_timings[profile->op_timing_count].name),
-        "%s",
-        name
-    );
+    memset(&profile->op_timings[profile->op_timing_count],
+           0,
+           sizeof(profile->op_timings[profile->op_timing_count]));
+    snprintf(profile->op_timings[profile->op_timing_count].name,
+             sizeof(profile->op_timings[profile->op_timing_count].name),
+             "%s",
+             name);
     profile->op_timings[profile->op_timing_count].total_us = elapsed_us;
     profile->op_timing_count += 1;
     return 1;
@@ -275,15 +274,14 @@ static void build_memory_summary(llmsql_profile *profile) {
     if (profile == NULL) {
         return;
     }
-    snprintf(
-        profile->memory_summary,
-        sizeof(profile->memory_summary),
-        "start RSS: %.1f MB\nafter prefill RSS: %.1f MB\nend RSS: %.1f MB\npeak RSS: %.1f MB",
-        profile->start_rss_mb,
-        profile->after_prefill_rss_mb,
-        profile->end_rss_mb,
-        profile->peak_rss_mb
-    );
+    snprintf(profile->memory_summary,
+             sizeof(profile->memory_summary),
+             "start RSS: %.1f MB\nafter prefill RSS: %.1f MB\nend RSS: %.1f "
+             "MB\npeak RSS: %.1f MB",
+             profile->start_rss_mb,
+             profile->after_prefill_rss_mb,
+             profile->end_rss_mb,
+             profile->peak_rss_mb);
 }
 
 void llmsql_native_free_profile(llmsql_profile *profile) {
@@ -302,11 +300,18 @@ void llmsql_native_print_profile(FILE *stream, const llmsql_profile *profile) {
     if (profile == NULL) {
         return;
     }
-    fprintf(out, "\n============================================================\n");
+    fprintf(out,
+            "\n============================================================\n");
     fprintf(out, "Profile\n");
-    fprintf(out, "============================================================\n");
-    fprintf(out, "Mode: %s\n", profile->mode[0] != '\0' ? profile->mode : "native_graph");
-    fprintf(out, "Database: %s\n", profile->db_filename[0] != '\0' ? profile->db_filename : "model.db");
+    fprintf(out,
+            "============================================================\n");
+    fprintf(out,
+            "Mode: %s\n",
+            profile->mode[0] != '\0' ? profile->mode : "native_graph");
+    fprintf(out,
+            "Database: %s\n",
+            profile->db_filename[0] != '\0' ? profile->db_filename
+                                            : "model.db");
     fprintf(out, "Prompt tokens: %d\n", profile->prompt_tokens);
     fprintf(out, "Generated tokens: %d\n", profile->generated_tokens);
     fprintf(out, "Prefill latency: %.2f ms\n", profile->prefill_ms);
@@ -315,11 +320,14 @@ void llmsql_native_print_profile(FILE *stream, const llmsql_profile *profile) {
     fprintf(out, "Decode avg/step: %.2f ms\n", profile->decode_avg_ms);
     fprintf(out, "Throughput: %.2f tokens/sec\n", profile->tokens_per_sec);
     fprintf(out, "Peak RSS: %.1f MB\n", profile->peak_rss_mb);
-    // NOTE: the per-step latency details can be very verbose, so we omit them by default. You can enable them by uncommenting the relevant code in llmsql_native_print_profile and recompile if you want to see them.
-    // if (profile->decode_step_count > 0 && profile->decode_step_ms != NULL) {
+    // NOTE: the per-step latency details can be very verbose, so we omit them
+    // by default. You can enable them by uncommenting the relevant code in
+    // llmsql_native_print_profile and recompile if you want to see them. if
+    // (profile->decode_step_count > 0 && profile->decode_step_ms != NULL) {
     //     fprintf(out, "Decode step latency (ms):\n");
     //     for (i = 0; i < profile->decode_step_count; ++i) {
-    //         fprintf(out, "  step %-3d %.2f\n", i + 1, profile->decode_step_ms[i]);
+    //         fprintf(out, "  step %-3d %.2f\n", i + 1,
+    //         profile->decode_step_ms[i]);
     //     }
     // }
     if (profile->sql_call_count > 0) {
@@ -329,7 +337,10 @@ void llmsql_native_print_profile(FILE *stream, const llmsql_profile *profile) {
         top_n = profile->op_timing_count < 5 ? profile->op_timing_count : 5;
         fprintf(out, "Top op timings (us):\n");
         for (i = 0; i < top_n; ++i) {
-            fprintf(out, "  %-30s %10.2f\n", profile->op_timings[i].name, profile->op_timings[i].total_us);
+            fprintf(out,
+                    "  %-30s %10.2f\n",
+                    profile->op_timings[i].name,
+                    profile->op_timings[i].total_us);
         }
     }
     if (profile->memory_summary[0] != '\0') {
@@ -372,7 +383,8 @@ static char *read_text_file(const char *path) {
     return buffer;
 }
 
-static void set_error(char *error_buf, size_t error_buf_size, const char *fmt, ...) {
+static void
+set_error(char *error_buf, size_t error_buf_size, const char *fmt, ...) {
     va_list args;
     if (error_buf == NULL || error_buf_size == 0) {
         return;
@@ -455,45 +467,45 @@ static int parser_parse_string(JsonParser *parser, char **out) {
             }
             ch = *parser->cur++;
             switch (ch) {
-                case '"':
-                case '\\':
-                case '/':
-                    break;
-                case 'b':
-                    ch = '\b';
-                    break;
-                case 'f':
-                    ch = '\f';
-                    break;
-                case 'n':
-                    ch = '\n';
-                    break;
-                case 'r':
-                    ch = '\r';
-                    break;
-                case 't':
-                    ch = '\t';
-                    break;
-                case 'u':
-                    if (parser->end - parser->cur < 4) {
-                        free(buffer);
-                        return parser_fail(parser, "short unicode escape");
-                    }
-                    code = 0;
-                    for (int i = 0; i < 4; ++i) {
-                        int digit = hex_value((unsigned char)parser->cur[i]);
-                        if (digit < 0) {
-                            free(buffer);
-                            return parser_fail(parser, "invalid unicode escape");
-                        }
-                        code = (code << 4) | digit;
-                    }
-                    parser->cur += 4;
-                    ch = (char)(code >= 0 && code <= 0x7f ? code : '?');
-                    break;
-                default:
+            case '"':
+            case '\\':
+            case '/':
+                break;
+            case 'b':
+                ch = '\b';
+                break;
+            case 'f':
+                ch = '\f';
+                break;
+            case 'n':
+                ch = '\n';
+                break;
+            case 'r':
+                ch = '\r';
+                break;
+            case 't':
+                ch = '\t';
+                break;
+            case 'u':
+                if (parser->end - parser->cur < 4) {
                     free(buffer);
-                    return parser_fail(parser, "unsupported escape sequence");
+                    return parser_fail(parser, "short unicode escape");
+                }
+                code = 0;
+                for (int i = 0; i < 4; ++i) {
+                    int digit = hex_value((unsigned char)parser->cur[i]);
+                    if (digit < 0) {
+                        free(buffer);
+                        return parser_fail(parser, "invalid unicode escape");
+                    }
+                    code = (code << 4) | digit;
+                }
+                parser->cur += 4;
+                ch = (char)(code >= 0 && code <= 0x7f ? code : '?');
+                break;
+            default:
+                free(buffer);
+                return parser_fail(parser, "unsupported escape sequence");
             }
         }
         if (len + 2 > cap) {
@@ -614,26 +626,32 @@ static int parser_skip_value(JsonParser *parser) {
         return parser_fail(parser, "unexpected end of json");
     }
     switch (*parser->cur) {
-        case '{':
-            return parser_skip_object(parser);
-        case '[':
-            return parser_skip_array(parser);
-        case '"': {
-            char *tmp = NULL;
-            int ok = parser_parse_string(parser, &tmp);
-            free(tmp);
-            return ok;
-        }
-        case 't':
-            return parser_parse_literal(parser, "true") ? 1 : parser_fail(parser, "invalid literal");
-        case 'f':
-            return parser_parse_literal(parser, "false") ? 1 : parser_fail(parser, "invalid literal");
-        case 'n':
-            return parser_parse_literal(parser, "null") ? 1 : parser_fail(parser, "invalid literal");
-        default: {
-            double ignored;
-            return parser_parse_double(parser, &ignored);
-        }
+    case '{':
+        return parser_skip_object(parser);
+    case '[':
+        return parser_skip_array(parser);
+    case '"': {
+        char *tmp = NULL;
+        int ok = parser_parse_string(parser, &tmp);
+        free(tmp);
+        return ok;
+    }
+    case 't':
+        return parser_parse_literal(parser, "true")
+                   ? 1
+                   : parser_fail(parser, "invalid literal");
+    case 'f':
+        return parser_parse_literal(parser, "false")
+                   ? 1
+                   : parser_fail(parser, "invalid literal");
+    case 'n':
+        return parser_parse_literal(parser, "null")
+                   ? 1
+                   : parser_fail(parser, "invalid literal");
+    default: {
+        double ignored;
+        return parser_parse_double(parser, &ignored);
+    }
     }
 }
 
@@ -796,7 +814,8 @@ static int parser_parse_arg(JsonParser *parser, NativeArg *arg) {
     return 1;
 }
 
-static int parser_parse_args(JsonParser *parser, NativeArg **out_args, int *out_count) {
+static int
+parser_parse_args(JsonParser *parser, NativeArg **out_args, int *out_count) {
     NativeArg *args = NULL;
     int count = 0;
     if (!parser_expect(parser, '[')) {
@@ -818,7 +837,8 @@ static int parser_parse_args(JsonParser *parser, NativeArg **out_args, int *out_
             free(args);
             return 0;
         }
-        next = (NativeArg *)realloc(args, (size_t)(count + 1) * sizeof(NativeArg));
+        next =
+            (NativeArg *)realloc(args, (size_t)(count + 1) * sizeof(NativeArg));
         if (next == NULL) {
             free_native_arg(&arg);
             for (int i = 0; i < count; ++i) {
@@ -846,7 +866,8 @@ static int parser_parse_args(JsonParser *parser, NativeArg **out_args, int *out_
     return 1;
 }
 
-static int parser_parse_int_array(JsonParser *parser, int **out_values, int *out_count) {
+static int
+parser_parse_int_array(JsonParser *parser, int **out_values, int *out_count) {
     int *values = NULL;
     int count = 0;
     if (!parser_expect(parser, '[')) {
@@ -951,7 +972,8 @@ static int parser_parse_instr(JsonParser *parser, NativeInstr *instr) {
                 return 0;
             }
         } else if (strcmp(key, "slots") == 0) {
-            if (!parser_parse_int_array(parser, &instr->output_slots, &instr->output_count)) {
+            if (!parser_parse_int_array(
+                    parser, &instr->output_slots, &instr->output_count)) {
                 free(key);
                 free(kind);
                 return 0;
@@ -1013,14 +1035,16 @@ static int parser_parse_instrs(JsonParser *parser, NativeGraph *graph) {
             free(instrs);
             return 0;
         }
-        next = (NativeInstr *)realloc(instrs, (size_t)(count + 1) * sizeof(NativeInstr));
+        next = (NativeInstr *)realloc(
+            instrs, (size_t)(count + 1) * sizeof(NativeInstr));
         if (next == NULL) {
             free_native_instr(&instr);
             for (int i = 0; i < count; ++i) {
                 free_native_instr(&instrs[i]);
             }
             free(instrs);
-            return parser_fail(parser, "out of memory growing instruction array");
+            return parser_fail(parser,
+                               "out of memory growing instruction array");
         }
         instrs = next;
         instrs[count++] = instr;
@@ -1041,13 +1065,17 @@ static int parser_parse_instrs(JsonParser *parser, NativeGraph *graph) {
     return 1;
 }
 
-static int load_native_graph(const char *path, NativeGraph *graph, char *error_buf, size_t error_buf_size) {
+static int load_native_graph(const char *path,
+                             NativeGraph *graph,
+                             char *error_buf,
+                             size_t error_buf_size) {
     char *text = read_text_file(path);
     JsonParser parser;
     char *key = NULL;
     memset(graph, 0, sizeof(*graph));
     if (text == NULL) {
-        set_error(error_buf, error_buf_size, "failed to read graph file: %s", path);
+        set_error(
+            error_buf, error_buf_size, "failed to read graph file: %s", path);
         return 0;
     }
     parser.cur = text;
@@ -1122,7 +1150,8 @@ static int load_native_graph(const char *path, NativeGraph *graph, char *error_b
     free(text);
     if (graph->slot_count <= 0 || graph->instr_count <= 0) {
         free_native_graph(graph);
-        set_error(error_buf, error_buf_size, "graph %s is empty or invalid", path);
+        set_error(
+            error_buf, error_buf_size, "graph %s is empty or invalid", path);
         return 0;
     }
     return 1;
@@ -1139,149 +1168,184 @@ static void value_reset(Value *value) {
     memset(value, 0, sizeof(*value));
 }
 
-static int value_clone(const Value *src, Value *dst, char *error_buf, size_t error_buf_size) {
+static int value_clone(const Value *src,
+                       Value *dst,
+                       char *error_buf,
+                       size_t error_buf_size) {
     memset(dst, 0, sizeof(*dst));
     dst->type = src->type;
     switch (src->type) {
-        case VALUE_EMPTY:
-        case VALUE_NULL:
-            return 1;
-        case VALUE_INT:
-            dst->as.int_value = src->as.int_value;
-            return 1;
-        case VALUE_FLOAT:
-            dst->as.float_value = src->as.float_value;
-            return 1;
-        case VALUE_TEXT: {
-            size_t len = strlen(src->as.text_value);
-            dst->as.text_value = (char *)malloc(len + 1);
-            if (dst->as.text_value == NULL) {
-                set_error(error_buf, error_buf_size, "out of memory cloning text result");
-                return 0;
-            }
-            memcpy(dst->as.text_value, src->as.text_value, len + 1);
-            dst->owned = 1;
-            return 1;
+    case VALUE_EMPTY:
+    case VALUE_NULL:
+        return 1;
+    case VALUE_INT:
+        dst->as.int_value = src->as.int_value;
+        return 1;
+    case VALUE_FLOAT:
+        dst->as.float_value = src->as.float_value;
+        return 1;
+    case VALUE_TEXT: {
+        size_t len = strlen(src->as.text_value);
+        dst->as.text_value = (char *)malloc(len + 1);
+        if (dst->as.text_value == NULL) {
+            set_error(
+                error_buf, error_buf_size, "out of memory cloning text result");
+            return 0;
         }
-        case VALUE_BLOB:
-            dst->as.blob.data = malloc((size_t)src->as.blob.size);
-            if (dst->as.blob.data == NULL) {
-                set_error(error_buf, error_buf_size, "out of memory cloning blob result");
-                return 0;
-            }
-            memcpy(dst->as.blob.data, src->as.blob.data, (size_t)src->as.blob.size);
-            dst->as.blob.size = src->as.blob.size;
-            dst->owned = 1;
-            return 1;
+        memcpy(dst->as.text_value, src->as.text_value, len + 1);
+        dst->owned = 1;
+        return 1;
     }
-    set_error(error_buf, error_buf_size, "unsupported value type %d", (int)src->type);
+    case VALUE_BLOB:
+        dst->as.blob.data = malloc((size_t)src->as.blob.size);
+        if (dst->as.blob.data == NULL) {
+            set_error(
+                error_buf, error_buf_size, "out of memory cloning blob result");
+            return 0;
+        }
+        memcpy(dst->as.blob.data, src->as.blob.data, (size_t)src->as.blob.size);
+        dst->as.blob.size = src->as.blob.size;
+        dst->owned = 1;
+        return 1;
+    }
+    set_error(
+        error_buf, error_buf_size, "unsupported value type %d", (int)src->type);
     return 0;
 }
 
-static int bind_value(sqlite3_stmt *stmt, int index, const Value *value, char *error_buf, size_t error_buf_size) {
+static int bind_value(sqlite3_stmt *stmt,
+                      int index,
+                      const Value *value,
+                      char *error_buf,
+                      size_t error_buf_size) {
     int rc;
     switch (value->type) {
-        case VALUE_EMPTY:
-        case VALUE_NULL:
-            rc = sqlite3_bind_null(stmt, index);
-            break;
-        case VALUE_BLOB:
-            rc = sqlite3_bind_blob(stmt, index, value->as.blob.data, value->as.blob.size, SQLITE_STATIC);
-            break;
-        case VALUE_INT:
-            rc = sqlite3_bind_int64(stmt, index, value->as.int_value);
-            break;
-        case VALUE_FLOAT:
-            rc = sqlite3_bind_double(stmt, index, value->as.float_value);
-            break;
-        case VALUE_TEXT:
-            rc = sqlite3_bind_text(stmt, index, value->as.text_value, -1, SQLITE_STATIC);
-            break;
-        default:
-            set_error(error_buf, error_buf_size, "unsupported bind value type %d", (int)value->type);
-            return 0;
+    case VALUE_EMPTY:
+    case VALUE_NULL:
+        rc = sqlite3_bind_null(stmt, index);
+        break;
+    case VALUE_BLOB:
+        rc = sqlite3_bind_blob(stmt,
+                               index,
+                               value->as.blob.data,
+                               value->as.blob.size,
+                               SQLITE_STATIC);
+        break;
+    case VALUE_INT:
+        rc = sqlite3_bind_int64(stmt, index, value->as.int_value);
+        break;
+    case VALUE_FLOAT:
+        rc = sqlite3_bind_double(stmt, index, value->as.float_value);
+        break;
+    case VALUE_TEXT:
+        rc = sqlite3_bind_text(
+            stmt, index, value->as.text_value, -1, SQLITE_STATIC);
+        break;
+    default:
+        set_error(error_buf,
+                  error_buf_size,
+                  "unsupported bind value type %d",
+                  (int)value->type);
+        return 0;
     }
     if (rc != SQLITE_OK) {
-        set_error(error_buf, error_buf_size, "sqlite bind failed: %s", sqlite3_errstr(rc));
+        set_error(error_buf,
+                  error_buf_size,
+                  "sqlite bind failed: %s",
+                  sqlite3_errstr(rc));
         return 0;
     }
     return 1;
 }
 
-static int bind_arg(sqlite3_stmt *stmt, int index, const NativeArg *arg, const Value *env, char *error_buf, size_t error_buf_size) {
+static int bind_arg(sqlite3_stmt *stmt,
+                    int index,
+                    const NativeArg *arg,
+                    const Value *env,
+                    char *error_buf,
+                    size_t error_buf_size) {
     Value temp;
     memset(&temp, 0, sizeof(temp));
     switch (arg->kind) {
-        case ARG_REF:
-            return bind_value(stmt, index, &env[arg->slot], error_buf, error_buf_size);
-        case ARG_TEXT:
-            temp.type = VALUE_TEXT;
-            temp.as.text_value = arg->text_value;
-            return bind_value(stmt, index, &temp, error_buf, error_buf_size);
-        case ARG_INT:
-            temp.type = VALUE_INT;
-            temp.as.int_value = arg->int_value;
-            return bind_value(stmt, index, &temp, error_buf, error_buf_size);
-        case ARG_FLOAT:
-            temp.type = VALUE_FLOAT;
-            temp.as.float_value = arg->float_value;
-            return bind_value(stmt, index, &temp, error_buf, error_buf_size);
-        case ARG_BOOL:
-            temp.type = VALUE_INT;
-            temp.as.int_value = arg->bool_value ? 1 : 0;
-            return bind_value(stmt, index, &temp, error_buf, error_buf_size);
-        case ARG_NULL:
-            temp.type = VALUE_NULL;
-            return bind_value(stmt, index, &temp, error_buf, error_buf_size);
+    case ARG_REF:
+        return bind_value(
+            stmt, index, &env[arg->slot], error_buf, error_buf_size);
+    case ARG_TEXT:
+        temp.type = VALUE_TEXT;
+        temp.as.text_value = arg->text_value;
+        return bind_value(stmt, index, &temp, error_buf, error_buf_size);
+    case ARG_INT:
+        temp.type = VALUE_INT;
+        temp.as.int_value = arg->int_value;
+        return bind_value(stmt, index, &temp, error_buf, error_buf_size);
+    case ARG_FLOAT:
+        temp.type = VALUE_FLOAT;
+        temp.as.float_value = arg->float_value;
+        return bind_value(stmt, index, &temp, error_buf, error_buf_size);
+    case ARG_BOOL:
+        temp.type = VALUE_INT;
+        temp.as.int_value = arg->bool_value ? 1 : 0;
+        return bind_value(stmt, index, &temp, error_buf, error_buf_size);
+    case ARG_NULL:
+        temp.type = VALUE_NULL;
+        return bind_value(stmt, index, &temp, error_buf, error_buf_size);
     }
-    set_error(error_buf, error_buf_size, "unsupported arg kind %d", (int)arg->kind);
+    set_error(
+        error_buf, error_buf_size, "unsupported arg kind %d", (int)arg->kind);
     return 0;
 }
 
-static int extract_value(sqlite3_stmt *stmt, int column, Value *out, char *error_buf, size_t error_buf_size) {
+static int extract_value(sqlite3_stmt *stmt,
+                         int column,
+                         Value *out,
+                         char *error_buf,
+                         size_t error_buf_size) {
     int type = sqlite3_column_type(stmt, column);
     memset(out, 0, sizeof(*out));
     switch (type) {
-        case SQLITE_NULL:
-            out->type = VALUE_NULL;
-            return 1;
-        case SQLITE_INTEGER:
-            out->type = VALUE_INT;
-            out->as.int_value = sqlite3_column_int64(stmt, column);
-            return 1;
-        case SQLITE_FLOAT:
-            out->type = VALUE_FLOAT;
-            out->as.float_value = sqlite3_column_double(stmt, column);
-            return 1;
-        case SQLITE_TEXT: {
-            const unsigned char *text = sqlite3_column_text(stmt, column);
-            size_t len = strlen((const char *)text);
-            out->as.text_value = (char *)malloc(len + 1);
-            if (out->as.text_value == NULL) {
-                set_error(error_buf, error_buf_size, "out of memory copying text result");
-                return 0;
-            }
-            memcpy(out->as.text_value, text, len + 1);
-            out->type = VALUE_TEXT;
-            out->owned = 1;
-            return 1;
+    case SQLITE_NULL:
+        out->type = VALUE_NULL;
+        return 1;
+    case SQLITE_INTEGER:
+        out->type = VALUE_INT;
+        out->as.int_value = sqlite3_column_int64(stmt, column);
+        return 1;
+    case SQLITE_FLOAT:
+        out->type = VALUE_FLOAT;
+        out->as.float_value = sqlite3_column_double(stmt, column);
+        return 1;
+    case SQLITE_TEXT: {
+        const unsigned char *text = sqlite3_column_text(stmt, column);
+        size_t len = strlen((const char *)text);
+        out->as.text_value = (char *)malloc(len + 1);
+        if (out->as.text_value == NULL) {
+            set_error(
+                error_buf, error_buf_size, "out of memory copying text result");
+            return 0;
         }
-        case SQLITE_BLOB: {
-            const void *blob = sqlite3_column_blob(stmt, column);
-            int size = sqlite3_column_bytes(stmt, column);
-            out->as.blob.data = malloc((size_t)size);
-            if (out->as.blob.data == NULL) {
-                set_error(error_buf, error_buf_size, "out of memory copying blob result");
-                return 0;
-            }
-            memcpy(out->as.blob.data, blob, (size_t)size);
-            out->as.blob.size = size;
-            out->type = VALUE_BLOB;
-            out->owned = 1;
-            return 1;
-        }
+        memcpy(out->as.text_value, text, len + 1);
+        out->type = VALUE_TEXT;
+        out->owned = 1;
+        return 1;
     }
-    set_error(error_buf, error_buf_size, "unsupported sqlite column type %d", type);
+    case SQLITE_BLOB: {
+        const void *blob = sqlite3_column_blob(stmt, column);
+        int size = sqlite3_column_bytes(stmt, column);
+        out->as.blob.data = malloc((size_t)size);
+        if (out->as.blob.data == NULL) {
+            set_error(
+                error_buf, error_buf_size, "out of memory copying blob result");
+            return 0;
+        }
+        memcpy(out->as.blob.data, blob, (size_t)size);
+        out->as.blob.size = size;
+        out->type = VALUE_BLOB;
+        out->owned = 1;
+        return 1;
+    }
+    }
+    set_error(
+        error_buf, error_buf_size, "unsupported sqlite column type %d", type);
     return 0;
 }
 
@@ -1294,28 +1358,29 @@ static void graph_outputs_free(GraphOutputs *outputs) {
     memset(outputs, 0, sizeof(*outputs));
 }
 
-static int parse_placeholder_name(const char *name, int *layer_idx, int *value_idx) {
+static int
+parse_placeholder_name(const char *name, int *layer_idx, int *value_idx) {
     return sscanf(name, "past_key_values_%d_%d", layer_idx, value_idx) == 2;
 }
 
-static int execute_graph(
-    sqlite3 *db,
-    const NativeGraph *graph,
-    const Blob *input_blob,
-    const Blob *past_kv,
-    int past_kv_count,
-    GraphOutputs *outputs,
-    ExecProfileContext *profile_ctx,
-    char *error_buf,
-    size_t error_buf_size
-) {
+static int execute_graph(sqlite3 *db,
+                         const NativeGraph *graph,
+                         const Blob *input_blob,
+                         const Blob *past_kv,
+                         int past_kv_count,
+                         GraphOutputs *outputs,
+                         ExecProfileContext *profile_ctx,
+                         char *error_buf,
+                         size_t error_buf_size) {
     Value *env = (Value *)calloc((size_t)graph->slot_count, sizeof(Value));
     int *moved = NULL;
     int rc = 0;
     int i;
     memset(outputs, 0, sizeof(*outputs));
     if (env == NULL) {
-        set_error(error_buf, error_buf_size, "out of memory allocating execution env");
+        set_error(error_buf,
+                  error_buf_size,
+                  "out of memory allocating execution env");
         return 0;
     }
     rc = 1;
@@ -1332,17 +1397,26 @@ static int execute_graph(
                 continue;
             }
             if (!parse_placeholder_name(instr->name, &layer_idx, &value_idx)) {
-                set_error(error_buf, error_buf_size, "unsupported placeholder: %s", instr->name);
+                set_error(error_buf,
+                          error_buf_size,
+                          "unsupported placeholder: %s",
+                          instr->name);
                 rc = 0;
                 break;
             }
             if (past_kv == NULL) {
-                set_error(error_buf, error_buf_size, "missing KV cache for placeholder %s", instr->name);
+                set_error(error_buf,
+                          error_buf_size,
+                          "missing KV cache for placeholder %s",
+                          instr->name);
                 rc = 0;
                 break;
             }
             if (layer_idx * 2 + value_idx >= past_kv_count) {
-                set_error(error_buf, error_buf_size, "KV cache index out of range for %s", instr->name);
+                set_error(error_buf,
+                          error_buf_size,
+                          "KV cache index out of range for %s",
+                          instr->name);
                 rc = 0;
                 break;
             }
@@ -1358,13 +1432,22 @@ static int execute_graph(
             if (profile_ctx != NULL && profile_ctx->profile != NULL) {
                 step_start_ms = monotonic_time_ms();
             }
-            if (sqlite3_reset(stmt) != SQLITE_OK || sqlite3_clear_bindings(stmt) != SQLITE_OK) {
-                set_error(error_buf, error_buf_size, "failed to reset statement for %s", instr->name != NULL ? instr->name : "sql");
+            if (sqlite3_reset(stmt) != SQLITE_OK ||
+                sqlite3_clear_bindings(stmt) != SQLITE_OK) {
+                set_error(error_buf,
+                          error_buf_size,
+                          "failed to reset statement for %s",
+                          instr->name != NULL ? instr->name : "sql");
                 rc = 0;
                 break;
             }
             for (bind_index = 0; bind_index < instr->arg_count; ++bind_index) {
-                if (!bind_arg(stmt, bind_index + 1, &instr->args[bind_index], env, error_buf, error_buf_size)) {
+                if (!bind_arg(stmt,
+                              bind_index + 1,
+                              &instr->args[bind_index],
+                              env,
+                              error_buf,
+                              error_buf_size)) {
                     rc = 0;
                     break;
                 }
@@ -1373,12 +1456,17 @@ static int execute_graph(
                 break;
             }
             if (sqlite3_step(stmt) != SQLITE_ROW) {
-                set_error(error_buf, error_buf_size, "statement failed for %s: %s", instr->name != NULL ? instr->name : "sql", sqlite3_errmsg(db));
+                set_error(error_buf,
+                          error_buf_size,
+                          "statement failed for %s: %s",
+                          instr->name != NULL ? instr->name : "sql",
+                          sqlite3_errmsg(db));
                 rc = 0;
                 break;
             }
             value_reset(&env[instr->slot]);
-            if (!extract_value(stmt, 0, &env[instr->slot], error_buf, error_buf_size)) {
+            if (!extract_value(
+                    stmt, 0, &env[instr->slot], error_buf, error_buf_size)) {
                 rc = 0;
                 break;
             }
@@ -1397,18 +1485,25 @@ static int execute_graph(
             continue;
         }
         if (instr->kind == INSTR_OUTPUT) {
-            outputs->values = (Value *)calloc((size_t)instr->output_count, sizeof(Value));
+            outputs->values =
+                (Value *)calloc((size_t)instr->output_count, sizeof(Value));
             outputs->count = instr->output_count;
             moved = (int *)calloc((size_t)graph->slot_count, sizeof(int));
             if (outputs->values == NULL || moved == NULL) {
-                set_error(error_buf, error_buf_size, "out of memory collecting graph outputs");
+                set_error(error_buf,
+                          error_buf_size,
+                          "out of memory collecting graph outputs");
                 rc = 0;
                 break;
             }
-            for (int out_index = 0; out_index < instr->output_count; ++out_index) {
+            for (int out_index = 0; out_index < instr->output_count;
+                 ++out_index) {
                 int slot = instr->output_slots[out_index];
                 if (slot < 0 || slot >= graph->slot_count) {
-                    set_error(error_buf, error_buf_size, "output slot out of range: %d", slot);
+                    set_error(error_buf,
+                              error_buf_size,
+                              "output slot out of range: %d",
+                              slot);
                     rc = 0;
                     break;
                 }
@@ -1416,7 +1511,10 @@ static int execute_graph(
                     outputs->values[out_index] = env[slot];
                     moved[slot] = 1;
                     memset(&env[slot], 0, sizeof(env[slot]));
-                } else if (!value_clone(&env[slot], &outputs->values[out_index], error_buf, error_buf_size)) {
+                } else if (!value_clone(&env[slot],
+                                        &outputs->values[out_index],
+                                        error_buf,
+                                        error_buf_size)) {
                     rc = 0;
                     break;
                 }
@@ -1462,7 +1560,8 @@ static Blob make_input_blob(const int *token_ids, int count) {
 }
 
 static int argmax_last_row(const Blob *blob, int vocab_size) {
-    const float *tail = (const float *)((const char *)blob->data + blob->size - vocab_size * 4);
+    const float *tail =
+        (const float *)((const char *)blob->data + blob->size - vocab_size * 4);
     int best_index = 0;
     float best_value = tail[0];
     for (int i = 1; i < vocab_size; ++i) {
@@ -1484,10 +1583,13 @@ static void free_blob_array(Blob *blobs, int count) {
     free(blobs);
 }
 
-static int resolve_int_metadata(sqlite3 *db, const char *key, int default_value) {
+static int
+resolve_int_metadata(sqlite3 *db, const char *key, int default_value) {
     sqlite3_stmt *stmt = NULL;
     int result = default_value;
-    if (sqlite3_prepare_v2(db, "SELECT value FROM metadata WHERE key = ?", -1, &stmt, NULL) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(
+            db, "SELECT value FROM metadata WHERE key = ?", -1, &stmt, NULL) !=
+        SQLITE_OK) {
         return default_value;
     }
     sqlite3_bind_text(stmt, 1, key, -1, SQLITE_STATIC);
@@ -1505,29 +1607,36 @@ static int resolve_int_metadata(sqlite3 *db, const char *key, int default_value)
     return result;
 }
 
-static int prepare_graph_statements(sqlite3 *db, NativeGraph *graph, char *error_buf, size_t error_buf_size) {
+static int prepare_graph_statements(sqlite3 *db,
+                                    NativeGraph *graph,
+                                    char *error_buf,
+                                    size_t error_buf_size) {
     int i;
     for (i = 0; i < graph->instr_count; ++i) {
         NativeInstr *instr = &graph->instrs[i];
         if (instr->kind != INSTR_SQL) {
             continue;
         }
-        if (sqlite3_prepare_v2(db, instr->sql, -1, &instr->stmt, NULL) != SQLITE_OK) {
-            set_error(
-                error_buf,
-                error_buf_size,
-                "failed to prepare %s (%s): %s",
-                instr->name != NULL ? instr->name : "sql",
-                instr->target != NULL ? instr->target : "unknown",
-                sqlite3_errmsg(db)
-            );
+        if (sqlite3_prepare_v2(db, instr->sql, -1, &instr->stmt, NULL) !=
+            SQLITE_OK) {
+            set_error(error_buf,
+                      error_buf_size,
+                      "failed to prepare %s (%s): %s",
+                      instr->name != NULL ? instr->name : "sql",
+                      instr->target != NULL ? instr->target : "unknown",
+                      sqlite3_errmsg(db));
             return 0;
         }
     }
     return 1;
 }
 
-static int open_runtime_db(const char *db_path, const char *extension_path, int num_threads, sqlite3 **out_db, char *error_buf, size_t error_buf_size) {
+static int open_runtime_db(const char *db_path,
+                           const char *extension_path,
+                           int num_threads,
+                           sqlite3 **out_db,
+                           char *error_buf,
+                           size_t error_buf_size) {
     sqlite3 *db = NULL;
     char *load_error = NULL;
     char thread_sql[64];
@@ -1539,12 +1648,20 @@ static int open_runtime_db(const char *db_path, const char *extension_path, int 
         return 0;
     }
     if (sqlite3_enable_load_extension(db, 1) != SQLITE_OK) {
-        set_error(error_buf, error_buf_size, "failed to enable extension loading: %s", sqlite3_errmsg(db));
+        set_error(error_buf,
+                  error_buf_size,
+                  "failed to enable extension loading: %s",
+                  sqlite3_errmsg(db));
         sqlite3_close(db);
         return 0;
     }
-    if (sqlite3_load_extension(db, extension_path, "sqlite3_llm_ops_init", &load_error) != SQLITE_OK) {
-        set_error(error_buf, error_buf_size, "failed to load extension: %s", load_error != NULL ? load_error : sqlite3_errmsg(db));
+    if (sqlite3_load_extension(
+            db, extension_path, "sqlite3_llm_ops_init", &load_error) !=
+        SQLITE_OK) {
+        set_error(error_buf,
+                  error_buf_size,
+                  "failed to load extension: %s",
+                  load_error != NULL ? load_error : sqlite3_errmsg(db));
         sqlite3_free(load_error);
         sqlite3_close(db);
         return 0;
@@ -1552,13 +1669,17 @@ static int open_runtime_db(const char *db_path, const char *extension_path, int 
     sqlite3_exec(db, "PRAGMA journal_mode=OFF", NULL, NULL, NULL);
     sqlite3_exec(db, "PRAGMA synchronous=OFF", NULL, NULL, NULL);
     sqlite3_exec(db, "PRAGMA temp_store=MEMORY", NULL, NULL, NULL);
-    snprintf(thread_sql, sizeof(thread_sql), "SELECT llm_set_threads(%d)", num_threads > 0 ? num_threads : 1);
+    snprintf(thread_sql,
+             sizeof(thread_sql),
+             "SELECT llm_set_threads(%d)",
+             num_threads > 0 ? num_threads : 1);
     sqlite3_exec(db, thread_sql, NULL, NULL, NULL);
     *out_db = db;
     return 1;
 }
 
-static const char *resolve_default_db_name(const char *model_dir, const char *explicit_db) {
+static const char *resolve_default_db_name(const char *model_dir,
+                                           const char *explicit_db) {
     char *path = NULL;
     struct stat st;
     static char selected[32];
@@ -1583,21 +1704,19 @@ static const char *resolve_default_db_name(const char *model_dir, const char *ex
     return selected;
 }
 
-int llmsql_native_generate_tokens_profiled(
-    const char *model_dir,
-    const char *db_filename,
-    const char *prefill_graph_path,
-    const char *decode_graph_path,
-    const char *extension_path,
-    int num_threads,
-    const int *prompt_ids,
-    int prompt_len,
-    int max_tokens,
-    llmsql_generation *out,
-    llmsql_profile *profile,
-    char *error_buf,
-    size_t error_buf_size
-) {
+int llmsql_native_generate_tokens_profiled(const char *model_dir,
+                                           const char *db_filename,
+                                           const char *prefill_graph_path,
+                                           const char *decode_graph_path,
+                                           const char *extension_path,
+                                           int num_threads,
+                                           const int *prompt_ids,
+                                           int prompt_len,
+                                           int max_tokens,
+                                           llmsql_generation *out,
+                                           llmsql_profile *profile,
+                                           char *error_buf,
+                                           size_t error_buf_size) {
     const char *resolved_db = resolve_default_db_name(model_dir, db_filename);
     char *db_path = NULL;
     char *prefill_path = NULL;
@@ -1630,13 +1749,19 @@ int llmsql_native_generate_tokens_profiled(
     if (profile != NULL) {
         llmsql_native_free_profile(profile);
         snprintf(profile->mode, sizeof(profile->mode), "%s", "native_graph");
-        snprintf(profile->db_filename, sizeof(profile->db_filename), "%s", resolved_db != NULL ? resolved_db : "");
+        snprintf(profile->db_filename,
+                 sizeof(profile->db_filename),
+                 "%s",
+                 resolved_db != NULL ? resolved_db : "");
         profile->prompt_tokens = prompt_len;
         if (max_tokens > 1) {
-            profile->decode_step_ms = (double *)calloc((size_t)(max_tokens - 1), sizeof(*profile->decode_step_ms));
+            profile->decode_step_ms = (double *)calloc(
+                (size_t)(max_tokens - 1), sizeof(*profile->decode_step_ms));
             if (profile->decode_step_ms == NULL) {
                 llmsql_native_free_profile(profile);
-                set_error(error_buf, error_buf_size, "out of memory allocating decode profile buffer");
+                set_error(error_buf,
+                          error_buf_size,
+                          "out of memory allocating decode profile buffer");
                 return 0;
             }
         }
@@ -1644,44 +1769,62 @@ int llmsql_native_generate_tokens_profiled(
     }
 
     db_path = join_path(model_dir, resolved_db);
-    prefill_path = prefill_graph_path != NULL ? llmsql_runtime_strdup(prefill_graph_path) : join_path(model_dir, "prefill.native.json");
-    decode_path = decode_graph_path != NULL ? llmsql_runtime_strdup(decode_graph_path) : join_path(model_dir, "decode.native.json");
+    prefill_path = prefill_graph_path != NULL
+                       ? llmsql_runtime_strdup(prefill_graph_path)
+                       : join_path(model_dir, "prefill.native.json");
+    decode_path = decode_graph_path != NULL
+                      ? llmsql_runtime_strdup(decode_graph_path)
+                      : join_path(model_dir, "decode.native.json");
     if (db_path == NULL || prefill_path == NULL || decode_path == NULL) {
-        set_error(error_buf, error_buf_size, "out of memory resolving runtime paths");
+        set_error(
+            error_buf, error_buf_size, "out of memory resolving runtime paths");
         goto cleanup;
     }
-    if (!load_native_graph(prefill_path, &prefill_graph, error_buf, error_buf_size)) {
+    if (!load_native_graph(
+            prefill_path, &prefill_graph, error_buf, error_buf_size)) {
         goto cleanup;
     }
-    if (!load_native_graph(decode_path, &decode_graph, error_buf, error_buf_size)) {
+    if (!load_native_graph(
+            decode_path, &decode_graph, error_buf, error_buf_size)) {
         goto cleanup;
     }
-    if (!open_runtime_db(db_path, extension_path, num_threads, &db, error_buf, error_buf_size)) {
+    if (!open_runtime_db(db_path,
+                         extension_path,
+                         num_threads,
+                         &db,
+                         error_buf,
+                         error_buf_size)) {
         goto cleanup;
     }
-    if (!prepare_graph_statements(db, &prefill_graph, error_buf, error_buf_size)) {
+    if (!prepare_graph_statements(
+            db, &prefill_graph, error_buf, error_buf_size)) {
         goto cleanup;
     }
-    if (!prepare_graph_statements(db, &decode_graph, error_buf, error_buf_size)) {
+    if (!prepare_graph_statements(
+            db, &decode_graph, error_buf, error_buf_size)) {
         goto cleanup;
     }
 
     vocab_size = resolve_int_metadata(db, "vocab_size", 0);
     eos_token_id = resolve_int_metadata(db, "eos_token_id", 0);
     if (vocab_size <= 0) {
-        set_error(error_buf, error_buf_size, "failed to resolve vocab_size from metadata");
+        set_error(error_buf,
+                  error_buf_size,
+                  "failed to resolve vocab_size from metadata");
         goto cleanup;
     }
 
     prompt_blob = make_input_blob(prompt_ids, prompt_len);
     if (prompt_blob.data == NULL) {
-        set_error(error_buf, error_buf_size, "out of memory building input blob");
+        set_error(
+            error_buf, error_buf_size, "out of memory building input blob");
         goto cleanup;
     }
 
     tokens = (int *)malloc((size_t)max_tokens * sizeof(int));
     if (tokens == NULL) {
-        set_error(error_buf, error_buf_size, "out of memory allocating token buffer");
+        set_error(
+            error_buf, error_buf_size, "out of memory allocating token buffer");
         goto cleanup;
     }
 
@@ -1693,16 +1836,27 @@ int llmsql_native_generate_tokens_profiled(
         if (profile != NULL) {
             prefill_start_ms = monotonic_time_ms();
         }
-        if (!execute_graph(db, &prefill_graph, &prompt_blob, NULL, 0, &prefill_outputs, NULL, error_buf, error_buf_size)) {
+        if (!execute_graph(db,
+                           &prefill_graph,
+                           &prompt_blob,
+                           NULL,
+                           0,
+                           &prefill_outputs,
+                           NULL,
+                           error_buf,
+                           error_buf_size)) {
             goto cleanup;
         }
         if (profile != NULL) {
             profile->prefill_ms = monotonic_time_ms() - prefill_start_ms;
             record_rss_snapshot(profile, &profile->after_prefill_rss_mb);
         }
-        if (prefill_outputs.count < 1 || prefill_outputs.values[0].type != VALUE_BLOB) {
+        if (prefill_outputs.count < 1 ||
+            prefill_outputs.values[0].type != VALUE_BLOB) {
             graph_outputs_free(&prefill_outputs);
-            set_error(error_buf, error_buf_size, "prefill graph returned invalid logits");
+            set_error(error_buf,
+                      error_buf_size,
+                      "prefill graph returned invalid logits");
             goto cleanup;
         }
         logits = prefill_outputs.values[0].as.blob;
@@ -1715,14 +1869,19 @@ int llmsql_native_generate_tokens_profiled(
             if (kv_cache == NULL) {
                 free(logits.data);
                 graph_outputs_free(&prefill_outputs);
-                set_error(error_buf, error_buf_size, "out of memory allocating KV cache");
+                set_error(error_buf,
+                          error_buf_size,
+                          "out of memory allocating KV cache");
                 goto cleanup;
             }
             for (int i = 0; i < kv_count; ++i) {
                 if (prefill_outputs.values[i + 1].type != VALUE_BLOB) {
                     free(logits.data);
                     graph_outputs_free(&prefill_outputs);
-                    set_error(error_buf, error_buf_size, "prefill output %d is not a blob", i + 1);
+                    set_error(error_buf,
+                              error_buf_size,
+                              "prefill output %d is not a blob",
+                              i + 1);
                     goto cleanup;
                 }
                 kv_cache[i] = prefill_outputs.values[i + 1].as.blob;
@@ -1741,29 +1900,45 @@ int llmsql_native_generate_tokens_profiled(
         double decode_start_ms = 0.0;
         memset(&decode_outputs, 0, sizeof(decode_outputs));
         if (step_blob.data == NULL) {
-            set_error(error_buf, error_buf_size, "out of memory building decode input blob");
+            set_error(error_buf,
+                      error_buf_size,
+                      "out of memory building decode input blob");
             goto cleanup;
         }
         if (profile != NULL) {
             decode_start_ms = monotonic_time_ms();
         }
-        if (!execute_graph(db, &decode_graph, &step_blob, kv_cache, kv_count, &decode_outputs, NULL, error_buf, error_buf_size)) {
+        if (!execute_graph(db,
+                           &decode_graph,
+                           &step_blob,
+                           kv_cache,
+                           kv_count,
+                           &decode_outputs,
+                           NULL,
+                           error_buf,
+                           error_buf_size)) {
             free(step_blob.data);
             goto cleanup;
         }
         free(step_blob.data);
-        if (decode_outputs.count < 1 || decode_outputs.values[0].type != VALUE_BLOB) {
+        if (decode_outputs.count < 1 ||
+            decode_outputs.values[0].type != VALUE_BLOB) {
             graph_outputs_free(&decode_outputs);
-            set_error(error_buf, error_buf_size, "decode graph returned invalid logits");
+            set_error(error_buf,
+                      error_buf_size,
+                      "decode graph returned invalid logits");
             goto cleanup;
         }
         logits = decode_outputs.values[0].as.blob;
         decode_outputs.values[0].type = VALUE_EMPTY;
-        next_kv = (Blob *)calloc((size_t)(decode_outputs.count - 1), sizeof(Blob));
+        next_kv =
+            (Blob *)calloc((size_t)(decode_outputs.count - 1), sizeof(Blob));
         if (next_kv == NULL) {
             free(logits.data);
             graph_outputs_free(&decode_outputs);
-            set_error(error_buf, error_buf_size, "out of memory allocating decode KV cache");
+            set_error(error_buf,
+                      error_buf_size,
+                      "out of memory allocating decode KV cache");
             goto cleanup;
         }
         for (int i = 1; i < decode_outputs.count; ++i) {
@@ -1771,7 +1946,10 @@ int llmsql_native_generate_tokens_profiled(
                 free(logits.data);
                 free_blob_array(next_kv, i - 1);
                 graph_outputs_free(&decode_outputs);
-                set_error(error_buf, error_buf_size, "decode output %d is not a blob", i);
+                set_error(error_buf,
+                          error_buf_size,
+                          "decode output %d is not a blob",
+                          i);
                 goto cleanup;
             }
             next_kv[i - 1] = decode_outputs.values[i].as.blob;
@@ -1780,7 +1958,8 @@ int llmsql_native_generate_tokens_profiled(
         graph_outputs_free(&decode_outputs);
         free_blob_array(kv_cache, kv_count);
         kv_cache = next_kv;
-        kv_count = decode_graph.instrs[decode_graph.instr_count - 1].output_count - 1;
+        kv_count =
+            decode_graph.instrs[decode_graph.instr_count - 1].output_count - 1;
         tokens[token_count] = argmax_last_row(&logits, vocab_size);
         free(logits.data);
         if (profile != NULL) {
@@ -1804,11 +1983,17 @@ int llmsql_native_generate_tokens_profiled(
         profile->generated_tokens = token_count;
         profile->decode_steps = decode_steps;
         profile->decode_step_count = decode_steps;
-        profile->decode_avg_ms = decode_steps > 0 ? profile->decode_total_ms / (double)decode_steps : 0.0;
-        profile->tokens_per_sec = profile->decode_total_ms > 0.0 ? ((double)decode_steps * 1000.0) / profile->decode_total_ms : 0.0;
+        profile->decode_avg_ms =
+            decode_steps > 0 ? profile->decode_total_ms / (double)decode_steps
+                             : 0.0;
+        profile->tokens_per_sec =
+            profile->decode_total_ms > 0.0
+                ? ((double)decode_steps * 1000.0) / profile->decode_total_ms
+                : 0.0;
         record_rss_snapshot(profile, &profile->end_rss_mb);
         if (decode_steps > 0 && kv_cache != NULL) {
-            Blob replay_blob = make_input_blob(&out->token_ids[out->token_count - 1], 1);
+            Blob replay_blob =
+                make_input_blob(&out->token_ids[out->token_count - 1], 1);
             GraphOutputs replay_outputs;
             ExecProfileContext replay_ctx;
             char replay_error[512] = {0};
@@ -1820,16 +2005,15 @@ int llmsql_native_generate_tokens_profiled(
             profile->op_timing_count = 0;
             profile->sql_call_count = 0;
             if (replay_blob.data != NULL) {
-                if (execute_graph(
-                        db,
-                        &decode_graph,
-                        &replay_blob,
-                        kv_cache,
-                        kv_count,
-                        &replay_outputs,
-                        &replay_ctx,
-                        replay_error,
-                        sizeof(replay_error))) {
+                if (execute_graph(db,
+                                  &decode_graph,
+                                  &replay_blob,
+                                  kv_cache,
+                                  kv_count,
+                                  &replay_outputs,
+                                  &replay_ctx,
+                                  replay_error,
+                                  sizeof(replay_error))) {
                     graph_outputs_free(&replay_outputs);
                     sort_profile_op_timings(profile);
                 } else {
@@ -1864,35 +2048,31 @@ cleanup:
     return rc;
 }
 
-int llmsql_native_generate_tokens(
-    const char *model_dir,
-    const char *db_filename,
-    const char *prefill_graph_path,
-    const char *decode_graph_path,
-    const char *extension_path,
-    int num_threads,
-    const int *prompt_ids,
-    int prompt_len,
-    int max_tokens,
-    llmsql_generation *out,
-    char *error_buf,
-    size_t error_buf_size
-) {
-    return llmsql_native_generate_tokens_profiled(
-        model_dir,
-        db_filename,
-        prefill_graph_path,
-        decode_graph_path,
-        extension_path,
-        num_threads,
-        prompt_ids,
-        prompt_len,
-        max_tokens,
-        out,
-        NULL,
-        error_buf,
-        error_buf_size
-    );
+int llmsql_native_generate_tokens(const char *model_dir,
+                                  const char *db_filename,
+                                  const char *prefill_graph_path,
+                                  const char *decode_graph_path,
+                                  const char *extension_path,
+                                  int num_threads,
+                                  const int *prompt_ids,
+                                  int prompt_len,
+                                  int max_tokens,
+                                  llmsql_generation *out,
+                                  char *error_buf,
+                                  size_t error_buf_size) {
+    return llmsql_native_generate_tokens_profiled(model_dir,
+                                                  db_filename,
+                                                  prefill_graph_path,
+                                                  decode_graph_path,
+                                                  extension_path,
+                                                  num_threads,
+                                                  prompt_ids,
+                                                  prompt_len,
+                                                  max_tokens,
+                                                  out,
+                                                  NULL,
+                                                  error_buf,
+                                                  error_buf_size);
 }
 
 void llmsql_native_free_generation(llmsql_generation *generation) {
